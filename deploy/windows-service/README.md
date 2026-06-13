@@ -38,6 +38,17 @@ target machine does **not** need the .NET runtime installed.
    crash-restart, and starts it. The host appears on the dashboard's **Hosts**
    page within a few seconds.
 
+## What gets installed
+
+| Property | Value |
+| --- | --- |
+| Service name (identifier) | `KamsoraAPM.HostMonitor` |
+| Display name (services.msc) | KamsoraAPM HostMonitor |
+| Description | KamsoraAPM host telemetry daemon (CPU/RAM/disk/network/processes). |
+| Startup type | Automatic |
+| Recovery | restart 5s after a crash (x3), reset count after 1 day |
+| Log on as | Local System |
+
 ## Manage
 
 ```powershell

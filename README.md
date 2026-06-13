@@ -151,6 +151,26 @@ export OTEL_EXPORTER_OTLP_HEADERS="x-kamsora-tenant=<tenant uuid>,x-kamsora-api-
 
 That's the whole integration - full walkthrough in [docs/ingest/otlp.md](docs/ingest/otlp.md).
 
+### Monitor a host (Windows)
+
+Download `kamsora-apm-hostmonitor-win-x64.zip` from the
+[Releases](https://github.com/kamsora/KamsoraAPM/releases) page (self-contained,
+so the server needs no .NET runtime) and extract it. Set the collector endpoint,
+tenant, and API key in `appsettings.json`, then from an **elevated** PowerShell
+in that folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install-service.ps1
+```
+
+This registers a Windows Service named `KamsoraAPM.HostMonitor` (display name
+"KamsoraAPM HostMonitor", auto-start, crash-restart) and the machine shows up on
+the **Hosts** page within seconds. Full steps and uninstall:
+[deploy/windows-service/](deploy/windows-service/README.md).
+
+> Linux host monitoring (systemd) is on the roadmap - the Linux metric samplers
+> are not implemented yet, so only Windows hosts report real metrics today.
+
 ---
 
 ## Production deployment
