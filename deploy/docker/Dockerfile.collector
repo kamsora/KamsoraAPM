@@ -8,7 +8,13 @@
 #   docker build -f deploy/docker/Dockerfile.collector -t kamsora-apm-collector:dev .
 
 # ---------- Stage 1: build ----------
-FROM mcr.microsoft.com/dotnet/sdk:8.0-jammy AS build
+# SDK 10: the repo's global.json pins the build SDK to 10.0.x (rollForward
+# latestMajor), and Directory.Build.props sets LangVersion=latest, so the code
+# is compiled with the same C# version CI uses. An 8.0 SDK image cannot satisfy
+# that global.json pin (restore fails) and would resolve LangVersion=latest to
+# an older C#. The published artifact still targets net8.0, so the runtime
+# stage below stays on the .NET 8 ASP.NET image.
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy only the files needed for restore first, so the package layer is cached
