@@ -1,13 +1,29 @@
+<div align="center">
+
+<img src="assets/kamsora-icon.png" alt="KamsoraAPM logo" width="120" height="120" />
+
 # KamsoraAPM
 
-> Open-source, self-hosted Application Performance Monitoring for .NET -
-> traces, logs, metrics, and host telemetry in one multi-tenant dashboard,
-> speaking the OpenTelemetry (OTLP) wire format.
+**Open-source, self-hosted Application Performance Monitoring for .NET** - distributed traces, logs, metrics, and host telemetry in one multi-tenant dashboard, speaking the OpenTelemetry (OTLP) wire format.
 
+[![NuGet](https://img.shields.io/nuget/v/KamsoraAPM.Agent?logo=nuget&label=KamsoraAPM.Agent)](https://www.nuget.org/packages/KamsoraAPM.Agent/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![OTLP](https://img.shields.io/badge/Wire-OTLP_compatible-7C3AED)](https://opentelemetry.io/docs/specs/otlp/)
 [![CI](https://github.com/kamsora/KamsoraAPM/actions/workflows/ci.yml/badge.svg)](https://github.com/kamsora/KamsoraAPM/actions/workflows/ci.yml)
+
+</div>
+
+<!--
+  LAUNCH TODO - add a dashboard screenshot here before sharing widely; for a
+  visual product this is the single highest-leverage thing on the page.
+  Capture a clean Overview (or Traces) page, save it to
+  assets/screenshots/overview.png, then delete this comment and un-comment
+  the line below:
+<p align="center"><img src="assets/screenshots/overview.png" alt="KamsoraAPM dashboard" width="900" /></p>
+-->
+
+<p align="center"><a href="#quick-start-docker"><b>Quick start</b></a> &middot; <a href="#architecture">Architecture</a> &middot; <a href="docs/ingest/otlp.md">Send from any language</a> &middot; <a href="docs/adr/">Design decisions</a></p>
 
 KamsoraAPM unifies the signals you actually debug with:
 
