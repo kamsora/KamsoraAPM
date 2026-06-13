@@ -63,10 +63,17 @@ jobs:
           --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~Load"
 
       - name: Pack Agent NuGet
+        # Deliberately NOT --no-build. The Agent bundles its Contracts
+        # ProjectReference into the package, and `pack --no-build` invokes the
+        # Build target on that referenced project, which fails NETSDK1085
+        # ("NoBuild was set but the Build target was invoked"). Restore already
+        # ran in the Restore step, so --no-restore keeps this fast; the Release
+        # build above is up to date, so this is an incremental no-op that packs
+        # the exact same binaries the test step exercised.
         run: >
           dotnet pack src/KamsoraAPM.Agent/KamsoraAPM.Agent.csproj
           --configuration Release
-          --no-build
+          --no-restore
           --output artifacts/nupkgs
 
       - name: Upload nupkg artifact
