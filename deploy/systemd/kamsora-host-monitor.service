@@ -1,0 +1,19 @@
+[Unit]
+Description=KamsoraAPM HostMonitor
+Documentation=https://github.com/kamsora/KamsoraAPM
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# notify: the daemon calls sd_notify(READY=1) via Microsoft.Extensions.Hosting.Systemd.
+Type=notify
+WorkingDirectory=/opt/kamsora-host-monitor
+ExecStart=/opt/kamsora-host-monitor/KamsoraAPM.HostMonitor
+Restart=always
+RestartSec=5
+# Runs as root so all of /proc is visible (every process for the top-N list).
+# To run unprivileged, set e.g. "User=kamsora" - but process visibility then
+# depends on /proc permissions (hidepid mounts can hide other PIDs).
+
+[Install]
+WantedBy=multi-user.target

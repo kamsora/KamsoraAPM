@@ -170,7 +170,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
 
-  publish-hostmonitor:
+  publish-hostmonitor-windows:
     name: publish-hostmonitor (win-x64)
     runs-on: windows-latest
     needs: build-and-test
@@ -219,10 +219,57 @@ jobs:
           name: hostmonitor-win-x64
           path: artifacts/hostmonitor/*.zip
 
+  publish-hostmonitor-linux:
+    name: publish-hostmonitor (linux-x64)
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.202
+
+      # Self-contained single-file: the target server needs no .NET runtime.
+      # No trimming - the config binder relies on reflection.
+      - name: Publish self-contained linux-x64
+        run: >
+          dotnet publish src/KamsoraAPM.HostMonitor/KamsoraAPM.HostMonitor.csproj
+          -c Release
+          -r linux-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:DebugType=none
+          -p:GenerateDocumentationFile=false
+          -o staging/kamsora-apm-hostmonitor-linux-x64
+
+      - name: Bundle systemd unit + scripts + readme
+        run: |
+          d=staging/kamsora-apm-hostmonitor-linux-x64
+          cp deploy/systemd/kamsora-host-monitor.service "$d/"
+          cp deploy/systemd/install-service.sh           "$d/"
+          cp deploy/systemd/uninstall-service.sh         "$d/"
+          cp deploy/systemd/README.md                    "$d/"
+          chmod +x "$d/install-service.sh" "$d/uninstall-service.sh" "$d/KamsoraAPM.HostMonitor"
+
+      - name: Tar
+        run: |
+          mkdir -p artifacts/hostmonitor
+          tar -C staging -czf artifacts/hostmonitor/kamsora-apm-hostmonitor-linux-x64.tar.gz kamsora-apm-hostmonitor-linux-x64
+
+      - name: Upload HostMonitor artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostmonitor-linux-x64
+          path: artifacts/hostmonitor/*.tar.gz
+
   github-release:
     name: github-release
     runs-on: ubuntu-latest
-    needs: [publish-nuget, docker-images, publish-hostmonitor]
+    needs: [publish-nuget, docker-images, publish-hostmonitor-windows, publish-hostmonitor-linux]
     steps:
       - name: Download nupkg artifact
         uses: actions/download-artifact@v4
@@ -230,10 +277,16 @@ jobs:
           name: nupkgs
           path: nupkgs
 
-      - name: Download HostMonitor artifact
+      - name: Download HostMonitor (Windows) artifact
         uses: actions/download-artifact@v4
         with:
           name: hostmonitor-win-x64
+          path: hostmonitor
+
+      - name: Download HostMonitor (Linux) artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hostmonitor-linux-x64
           path: hostmonitor
 
       - name: Create GitHub Release
@@ -243,3 +296,4 @@ jobs:
           files: |
             nupkgs/*.nupkg
             hostmonitor/*.zip
+            hostmonitor/*.tar.gz

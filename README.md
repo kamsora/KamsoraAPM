@@ -151,25 +151,34 @@ export OTEL_EXPORTER_OTLP_HEADERS="x-kamsora-tenant=<tenant uuid>,x-kamsora-api-
 
 That's the whole integration - full walkthrough in [docs/ingest/otlp.md](docs/ingest/otlp.md).
 
-### Monitor a host (Windows)
+### Monitor a host
 
-Download `kamsora-apm-hostmonitor-win-x64.zip` from the
-[Releases](https://github.com/kamsora/KamsoraAPM/releases) page (self-contained,
-so the server needs no .NET runtime) and extract it. Set the collector endpoint,
-tenant, and API key in `appsettings.json`, then from an **elevated** PowerShell
-in that folder:
+The HostMonitor daemon reports a machine's CPU, memory, disk, network, and top
+processes to the Collector. Pre-built, self-contained downloads (no .NET runtime
+needed on the server) are attached to every
+[Release](https://github.com/kamsora/KamsoraAPM/releases). Set the collector
+endpoint, tenant, and API key in `appsettings.json`, then install the service:
+
+**Linux (systemd):**
+
+```bash
+tar -xzf kamsora-apm-hostmonitor-linux-x64.tar.gz
+cd kamsora-apm-hostmonitor-linux-x64
+# edit appsettings.json, then:
+sudo ./install-service.sh
+```
+
+**Windows (Service):** extract `kamsora-apm-hostmonitor-win-x64.zip`, edit
+`appsettings.json`, then from an **elevated** PowerShell in that folder:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File install-service.ps1
 ```
 
-This registers a Windows Service named `KamsoraAPM.HostMonitor` (display name
-"KamsoraAPM HostMonitor", auto-start, crash-restart) and the machine shows up on
-the **Hosts** page within seconds. Full steps and uninstall:
-[deploy/windows-service/](deploy/windows-service/README.md).
-
-> Linux host monitoring (systemd) is on the roadmap - the Linux metric samplers
-> are not implemented yet, so only Windows hosts report real metrics today.
+Either way it installs as an auto-start, crash-restarting service named
+`KamsoraAPM.HostMonitor` and the machine appears on the **Hosts** page within
+seconds. Full steps: [deploy/systemd/](deploy/systemd/README.md) (Linux),
+[deploy/windows-service/](deploy/windows-service/README.md) (Windows).
 
 ---
 
@@ -207,7 +216,7 @@ Operational notes:
   /docker                      quickstart compose + Dockerfiles
   /production                  hardened TLS stack + backups + deploy guide
   /sql                         Postgres + ClickHouse schemas
-  /windows-service             HostMonitor Windows Service installer (Linux systemd: roadmap)
+  /windows-service, /systemd   HostMonitor service installers (Windows + Linux)
 /tests                         unit + integration tests
 /docs                          ADRs, ingest & deploy guides
 /sample-apps                   sample Web API with the Agent attached

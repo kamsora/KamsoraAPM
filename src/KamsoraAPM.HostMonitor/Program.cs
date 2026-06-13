@@ -42,7 +42,7 @@ try
         .ValidateDataAnnotations()
         .ValidateOnStart();
 
-    // Per-OS samplers. Linux impls are placeholders until M3.y.
+    // Per-OS samplers. Windows uses PerformanceCounter / Win32; Linux reads /proc.
     if (OperatingSystem.IsWindows())
     {
         builder.Services.AddSingleton<ICpuMemorySampler, WindowsCpuMemorySampler>();
@@ -53,9 +53,9 @@ try
     else
     {
         builder.Services.AddSingleton<ICpuMemorySampler, LinuxCpuMemorySampler>();
-        builder.Services.AddSingleton<IDiskSampler,      NullDiskSampler>();
-        builder.Services.AddSingleton<INetworkSampler,   NullNetworkSampler>();
-        builder.Services.AddSingleton<IProcessSampler,   NullProcessSampler>();
+        builder.Services.AddSingleton<IDiskSampler,      LinuxDiskSampler>();
+        builder.Services.AddSingleton<INetworkSampler,   LinuxNetworkSampler>();
+        builder.Services.AddSingleton<IProcessSampler,   LinuxProcessSampler>();
     }
 
     // gRPC client for the Collector's HostService. One channel per process.

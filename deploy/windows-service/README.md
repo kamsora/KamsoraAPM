@@ -63,6 +63,5 @@ Get-Service     KamsoraAPM.HostMonitor
 powershell -ExecutionPolicy Bypass -File uninstall-service.ps1
 ```
 
-> Note: Linux host monitoring (systemd) is on the roadmap - the Linux metric
-> samplers are not implemented yet, so only Windows hosts report real metrics
-> today.
+> Running Linux instead? See [../systemd/](../systemd/README.md) for the
+> systemd install.
