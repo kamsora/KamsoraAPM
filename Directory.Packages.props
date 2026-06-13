@@ -42,9 +42,9 @@
   </ItemGroup>
 
   <ItemGroup Label="Storage / Data">
-    <PackageVersion Include="Npgsql" Version="8.0.6" />
-    <PackageVersion Include="ClickHouse.Client" Version="7.10.0" />
-    <PackageVersion Include="Dapper" Version="2.1.35" /> <!-- read-only convenience; ingestion path stays raw ADO.NET -->
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
+    <PackageVersion Include="ClickHouse.Client" Version="7.14.0" />
+    <PackageVersion Include="Dapper" Version="2.1.79" /> <!-- read-only convenience; ingestion path stays raw ADO.NET -->
   </ItemGroup>
 
   <ItemGroup Label="Observability for self">
