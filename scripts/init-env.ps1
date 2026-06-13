@@ -56,8 +56,14 @@ $jwtKey    = New-Base64Key 48
 $adminPass = New-AlphaNum 20
 
 if (Test-Path $EnvFile) {
-    Copy-Item $EnvFile "$EnvFile.bak" -Force
-    Write-Host "Backed up existing .env to $EnvFile.bak"
+    # Clear a read-only attribute so the write below does not fail with "Access is denied".
+    try { (Get-Item $EnvFile -Force).Attributes = [System.IO.FileAttributes]::Normal } catch {}
+    try {
+        Copy-Item $EnvFile "$EnvFile.bak" -Force
+        Write-Host "Backed up existing .env to $EnvFile.bak"
+    } catch {
+        Write-Host "Could not back up the existing .env (continuing anyway): $($_.Exception.Message)" -ForegroundColor Yellow
+    }
 }
 
 $content = @"
@@ -79,7 +85,19 @@ SEED_TENANT_SLUG=my-company
 "@
 
 # ASCII (no BOM) - a UTF-8 BOM on line 1 breaks docker compose env parsing.
-Set-Content -Path $EnvFile -Value $content -Encoding ascii
+try {
+    [System.IO.File]::WriteAllText($EnvFile, $content, (New-Object System.Text.ASCIIEncoding))
+} catch {
+    Write-Host ""
+    Write-Host "ERROR: could not write $EnvFile" -ForegroundColor Red
+    Write-Host "Reason: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Fixes to try:" -ForegroundColor Yellow
+    Write-Host "  1. Close any editor that has deploy/docker/.env open, then rerun."
+    Write-Host "  2. Run this shell as Administrator (right-click PowerShell > Run as administrator), then rerun."
+    Write-Host "  3. Or move the repo under your user folder, e.g. C:\Users\$env:USERNAME\KamsoraAPM, and rerun there."
+    exit 1
+}
 
 Write-Host ""
 Write-Host "Wrote $EnvFile with fresh random secrets." -ForegroundColor Green
