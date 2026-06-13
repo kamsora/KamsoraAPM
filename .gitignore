@@ -52,6 +52,9 @@ build/
 
 # ---- Logs ----
 logs/
+# Exception: the protobuf package "kamsora.logs.v1" lives in a Protos/ directory
+# named logs/. It is source, not log output, so keep it tracked.
+!src/KamsoraAPM.Contracts/Protos/kamsora/logs/
 *.log
 npm-debug.log*
 yarn-debug.log*

@@ -1,0 +1,51 @@
+// Copyright 2026 Kamsora and KamsoraAPM contributors.
+// Licensed under the Apache License, Version 2.0.
+syntax = "proto3";
+
+package kamsora.logs.v1;
+
+option csharp_namespace = "KamsoraAPM.Contracts.Logs.V1";
+option go_package        = "github.com/kamsora/kamsora-apm/contracts/logs/v1;logsv1";
+
+import "kamsora/common/v1/common.proto";
+
+message ResourceLogs {
+  kamsora.common.v1.Resource resource   = 1;
+  repeated ScopeLogs         scope_logs = 2;
+  string                     schema_url = 3;
+}
+
+message ScopeLogs {
+  kamsora.common.v1.InstrumentationScope scope      = 1;
+  repeated LogRecord                      log_records = 2;
+  string                                  schema_url = 3;
+}
+
+// A single log record. Severity follows OTLP numeric ranges:
+// TRACE 1-4, DEBUG 5-8, INFO 9-12, WARN 13-16, ERROR 17-20, FATAL 21-24.
+message LogRecord {
+  fixed64 time_unix_nano          = 1;
+  fixed64 observed_time_unix_nano = 11;
+
+  SeverityNumber severity_number  = 2;
+  string         severity_text    = 3;
+
+  kamsora.common.v1.AnyValue body = 5;
+
+  repeated kamsora.common.v1.KeyValue attributes               = 6;
+  uint32                              dropped_attributes_count = 7;
+
+  uint32 flags    = 8;
+  bytes  trace_id = 9;
+  bytes  span_id  = 10;
+
+  enum SeverityNumber {
+    SEVERITY_NUMBER_UNSPECIFIED = 0;
+    SEVERITY_NUMBER_TRACE       = 1;
+    SEVERITY_NUMBER_DEBUG       = 5;
+    SEVERITY_NUMBER_INFO        = 9;
+    SEVERITY_NUMBER_WARN        = 13;
+    SEVERITY_NUMBER_ERROR       = 17;
+    SEVERITY_NUMBER_FATAL       = 21;
+  }
+}
