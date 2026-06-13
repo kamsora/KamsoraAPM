@@ -1,0 +1,86 @@
+# ---- OS / Editor ----
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.recommended.json
+
+# ---- .NET ----
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userprefs
+*.dbmdl
+*.dbproj.schemaview
+*.jfm
+*.pfx
+*.publishsettings
+artifacts/
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+.dotnet/
+**/Properties/launchSettings.json
+project.lock.json
+project.fragment.lock.json
+*.binlog
+
+# ---- Generated protobuf ----
+**/Generated/
+**/obj/**/*.g.cs
+
+# ---- Node / React ----
+node_modules/
+.pnpm-store/
+.yarn/
+.npm/
+.next/
+.nuxt/
+dist/
+build/
+*.tsbuildinfo
+.vite/
+.turbo/
+
+# ---- Logs ----
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Env / Secrets ----
+.env
+.env.local
+.env.*.local
+*.local.json
+secrets.json
+appsettings.Development.json
+appsettings.Local.json
+
+# ---- Docker / runtime data ----
+deploy/docker/data/
+deploy/docker/.data/
+**/docker-volumes/
+
+# ---- Local build artifacts (never commit binaries; releases go to GitHub Releases / NuGet.org) ----
+nupkgs/
+releases/
+_verify/
+
+# ---- Test / benchmarks ----
+BenchmarkDotNet.Artifacts/
+
+# ---- Misc ----
+*.bak
+*.tmp
+*.temp

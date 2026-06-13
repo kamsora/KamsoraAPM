@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>KamsoraAPM.Collector</RootNamespace>
+    <AssemblyName>KamsoraAPM.Collector</AssemblyName>
+    <Description>KamsoraAPM gRPC ingestion API. Buffers via System.Threading.Channels, persists to ClickHouse via raw ADO.NET. Targets 25k RPS/node.</Description>
+    <IsPackable>false</IsPackable>
+    <UserSecretsId>kamsora-apm-collector</UserSecretsId>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <!-- OpenTelemetry.Exporter.OpenTelemetryProtocol re-added in M2 once GHSA-4625-4j76-fww9 ships an upstream fix. -->
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <PackageReference Include="Polly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KamsoraAPM.Contracts\KamsoraAPM.Contracts.csproj" />
+    <ProjectReference Include="..\KamsoraAPM.Storage\KamsoraAPM.Storage.csproj" />
+  </ItemGroup>
+
+</Project>

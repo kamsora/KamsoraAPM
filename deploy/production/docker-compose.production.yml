@@ -1,0 +1,273 @@
+# KamsoraAPM — production single-host docker-compose stack.
+#
+# All services run on one host fronted by Caddy (auto-HTTPS via Let's Encrypt).
+# Targets: 4 vCPU / 8 GB RAM minimum, comfortably supports ~50 hosts +
+# a few hundred instrumented apps.
+#
+# Prerequisites (see deploy/production/README.md):
+#   1. DNS A-record points your domain at this server's public IP.
+#   2. Ports 80, 443, 5080 reachable from the internet.
+#   3. .env.production created from .env.production.example (run bootstrap.sh).
+#
+# Bring up:
+#   docker compose --env-file .env.production -f docker-compose.production.yml up -d
+#
+# Upgrade (after `git pull`):
+#   docker compose --env-file .env.production -f docker-compose.production.yml \
+#       build --pull && \
+#   docker compose --env-file .env.production -f docker-compose.production.yml \
+#       up -d
+
+name: kamsora-apm-prod
+
+# ----------------------------------------------------------------------------
+# Networks
+# ----------------------------------------------------------------------------
+networks:
+  edge:
+    name: kamsora-apm-edge
+  internal:
+    name: kamsora-apm-internal
+    internal: false   # outbound DNS/TLS from caddy needs to resolve LE
+
+# ----------------------------------------------------------------------------
+# Volumes
+# ----------------------------------------------------------------------------
+volumes:
+  caddy-data:
+    name: kamsora-apm-caddy-data        # holds Let's Encrypt cert + private key
+  caddy-config:
+    name: kamsora-apm-caddy-config
+  postgres-data:
+    name: kamsora-apm-postgres-data
+  clickhouse-data:
+    name: kamsora-apm-clickhouse-data
+  clickhouse-logs:
+    name: kamsora-apm-clickhouse-logs
+  backups:
+    name: kamsora-apm-backups
+
+services:
+
+  # --------------------------------------------------------------------------
+  # Caddy — TLS termination + reverse proxy + auto-Let's-Encrypt
+  # --------------------------------------------------------------------------
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: kamsora-apm-caddy
+    restart: unless-stopped
+    networks: [edge, internal]
+    ports:
+      - "80:80"       # HTTP-01 ACME challenge + 80→443 redirect
+      - "443:443"     # Dashboard HTTPS
+      - "5080:5080"   # gRPC ingest (HTTPS / HTTP/2)
+    environment:
+      KAMSORA_DOMAIN:     ${KAMSORA_DOMAIN:?KAMSORA_DOMAIN must be set in .env.production}
+      KAMSORA_ACME_EMAIL: ${KAMSORA_ACME_EMAIL:?KAMSORA_ACME_EMAIL must be set in .env.production}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      dashboard:
+        condition: service_healthy
+      dashboard-api:
+        condition: service_healthy
+      collector:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # --------------------------------------------------------------------------
+  # Postgres — relational metadata (tenants, users, API keys, audit log)
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: kamsora-apm-postgres-prod
+    restart: unless-stopped
+    networks: [internal]
+    environment:
+      POSTGRES_DB:       kamsora_apm
+      POSTGRES_USER:     kamsora
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env.production}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../sql/postgres:/docker-entrypoint-initdb.d:ro
+    command: >
+      postgres
+        -c shared_preload_libraries=pg_stat_statements
+        -c pg_stat_statements.track=all
+        -c max_connections=200
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kamsora -d kamsora_apm"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # --------------------------------------------------------------------------
+  # ClickHouse — time-series store (spans, host telemetry, metrics, logs)
+  # --------------------------------------------------------------------------
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.10
+    container_name: kamsora-apm-clickhouse-prod
+    restart: unless-stopped
+    networks: [internal]
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    environment:
+      CLICKHOUSE_DB:        kamsora_apm
+      CLICKHOUSE_USER:      kamsora
+      CLICKHOUSE_PASSWORD:  ${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD must be set in .env.production}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+      - ../sql/clickhouse:/docker-entrypoint-initdb.d:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4g
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # --------------------------------------------------------------------------
+  # Collector — gRPC ingest service
+  # --------------------------------------------------------------------------
+  collector:
+    image: kamsora-apm-collector:${KAMSORA_IMAGE_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.collector
+    container_name: kamsora-apm-collector-prod
+    restart: unless-stopped
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Kestrel endpoints come from the app's appsettings.json:
+      #   5080 = gRPC ingest (HTTP/2, proxied by Caddy), 5081 = health/stats (HTTP/1).
+      KamsoraApm__Postgres__ConnectionString:    "Host=postgres;Port=5432;Database=kamsora_apm;Username=kamsora;Password=${POSTGRES_PASSWORD}"
+      KamsoraApm__ClickHouse__ConnectionString:  "Host=clickhouse;Port=8123;Database=kamsora_apm;Username=kamsora;Password=${CLICKHOUSE_PASSWORD}"
+      KamsoraApm__Collector__QueueCapacity:      "${COLLECTOR_QUEUE_CAPACITY:-100000}"
+      KamsoraApm__Collector__MaxFlushBatchSize:  "${COLLECTOR_BATCH_SIZE:-5000}"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1g
+    # Healthcheck is defined inside Dockerfile.collector (HEALTHCHECK directive).
+
+  # --------------------------------------------------------------------------
+  # Dashboard.Api — REST/JWT backend
+  # --------------------------------------------------------------------------
+  dashboard-api:
+    image: kamsora-apm-dashboard-api:${KAMSORA_IMAGE_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.dashboard-api
+    container_name: kamsora-apm-dashboard-api-prod
+    restart: unless-stopped
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS:        http://+:5090
+      KamsoraApm__Postgres__ConnectionString:    "Host=postgres;Port=5432;Database=kamsora_apm;Username=kamsora;Password=${POSTGRES_PASSWORD}"
+      KamsoraApm__ClickHouse__ConnectionString:  "Host=clickhouse;Port=8123;Database=kamsora_apm;Username=kamsora;Password=${CLICKHOUSE_PASSWORD}"
+      KamsoraApm__Auth__JwtSigningKey:           "${JWT_SIGNING_KEY:?JWT_SIGNING_KEY must be set in .env.production}"
+      KamsoraApm__Auth__JwtIssuer:               "${KAMSORA_DOMAIN}"
+      KamsoraApm__Auth__JwtAudience:             "kamsora-apm-dashboard"
+      KamsoraApm__Auth__SeedTenant__TenantName:         ${SEED_TENANT_NAME:-Kamsora}
+      KamsoraApm__Auth__SeedTenant__TenantSlug:         ${SEED_TENANT_SLUG:-kamsora}
+      KamsoraApm__Auth__SeedTenant__AdminEmail:         ${SEED_ADMIN_EMAIL:?SEED_ADMIN_EMAIL must be set in .env.production}
+      KamsoraApm__Auth__SeedTenant__AdminPassword:      ${SEED_ADMIN_PASSWORD:?SEED_ADMIN_PASSWORD must be set in .env.production}
+      KamsoraApm__Auth__SeedTenant__IssueDefaultApiKey: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+    # Healthcheck is defined inside Dockerfile.dashboard-api (HEALTHCHECK directive).
+
+  # --------------------------------------------------------------------------
+  # Dashboard SPA — static React bundle served by nginx
+  # --------------------------------------------------------------------------
+  dashboard:
+    image: kamsora-apm-dashboard:${KAMSORA_IMAGE_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.dashboard
+    container_name: kamsora-apm-dashboard-prod
+    restart: unless-stopped
+    networks: [internal]
+    depends_on:
+      dashboard-api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+  # --------------------------------------------------------------------------
+  # Backup sidecar — daily pg_dump + clickhouse-backup written to ./backups
+  # --------------------------------------------------------------------------
+  backup:
+    image: kamsora-apm-backup:${KAMSORA_IMAGE_TAG:-latest}
+    build:
+      context: backup
+      dockerfile: Dockerfile
+    container_name: kamsora-apm-backup
+    restart: unless-stopped
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      PGHOST:             postgres
+      PGUSER:             kamsora
+      PGPASSWORD:         ${POSTGRES_PASSWORD}
+      PGDATABASE:         kamsora_apm
+      CLICKHOUSE_HOST:    clickhouse
+      CLICKHOUSE_USER:    kamsora
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      BACKUP_RETENTION_DAYS: "${BACKUP_RETENTION_DAYS:-7}"
+      BACKUP_CRON_SCHEDULE:  "${BACKUP_CRON_SCHEDULE:-0 3 * * *}"   # daily at 03:00 UTC
+    volumes:
+      - backups:/backups
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M

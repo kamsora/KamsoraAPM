@@ -1,0 +1,65 @@
+// Copyright 2026 Kamsora and KamsoraAPM contributors.
+// Licensed under the Apache License, Version 2.0.
+//
+// KamsoraAPM continuous profiling signal. Mirrors the experimental OTLP
+// Profiles spec at a high level (ResourceProfiles -> ScopeProfiles -> Profile)
+// but the actual sample data is a verbatim serialized pprof
+// (perftools.profiles.Profile) embedded in the `pprof` field. Storing pprof
+// raw keeps us compatible with Pyroscope, Parca, Grafana, and `go tool pprof`.
+syntax = "proto3";
+
+package kamsora.profiles.v1;
+
+option csharp_namespace = "KamsoraAPM.Contracts.Profiles.V1";
+option go_package        = "github.com/kamsora/kamsora-apm/contracts/profiles/v1;profilesv1";
+
+import "kamsora/common/v1/common.proto";
+
+message ResourceProfiles {
+  kamsora.common.v1.Resource resource       = 1;
+  repeated ScopeProfiles     scope_profiles = 2;
+  string                     schema_url     = 3;
+}
+
+message ScopeProfiles {
+  kamsora.common.v1.InstrumentationScope scope    = 1;
+  repeated Profile                        profiles = 2;
+  string                                  schema_url = 3;
+}
+
+// One profile capture. Self-contained — `pprof` is the full perftools
+// Profile message serialized to bytes, including its own string_table,
+// locations, functions, and samples.
+message Profile {
+  // Wall-clock start of the capture window.
+  fixed64 start_time_unix_nano = 1;
+  // How long the profiler was sampling, in nanoseconds.
+  fixed64 duration_nano        = 2;
+
+  // What was sampled. v1 ships CPU only; ALLOC / WALL / LOCK / GC follow.
+  ProfileKind kind = 3;
+
+  // Total number of stack samples represented inside `pprof`. Lets the
+  // dashboard show a count without parsing the pprof blob.
+  uint64 sample_count = 4;
+
+  // Embedded serialized perftools.profiles.Profile. Typically ZSTD-friendly,
+  // tens of KB for a 10s CPU profile of a small service.
+  bytes pprof = 5;
+
+  // Optional correlation hint — when the capture was triggered by a specific
+  // trace_id (e.g. "profile this slow request"). Empty for periodic captures.
+  bytes trigger_trace_id = 6;
+
+  // Free-form attributes — e.g. host.name, k8s.pod.name, agent.version.
+  repeated kamsora.common.v1.KeyValue attributes = 7;
+}
+
+enum ProfileKind {
+  PROFILE_KIND_UNSPECIFIED = 0;
+  PROFILE_KIND_CPU         = 1;   // CPU sampling profile (default in v1)
+  PROFILE_KIND_WALL        = 2;   // Wall-clock — reserved, not yet emitted
+  PROFILE_KIND_ALLOC       = 3;   // Allocation profile — reserved
+  PROFILE_KIND_LOCK        = 4;   // Lock contention — reserved
+  PROFILE_KIND_GC          = 5;   // GC events / heap snapshots — reserved
+}

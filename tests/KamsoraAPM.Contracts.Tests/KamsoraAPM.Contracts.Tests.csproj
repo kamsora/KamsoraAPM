@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>KamsoraAPM.Contracts.Tests</RootNamespace>
+    <AssemblyName>KamsoraAPM.Contracts.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KamsoraAPM.Contracts\KamsoraAPM.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

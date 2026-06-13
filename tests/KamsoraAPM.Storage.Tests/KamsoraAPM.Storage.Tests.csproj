@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>KamsoraAPM.Storage.Tests</RootNamespace>
+    <AssemblyName>KamsoraAPM.Storage.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.ClickHouse" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KamsoraAPM.Storage\KamsoraAPM.Storage.csproj" />
+  </ItemGroup>
+
+</Project>

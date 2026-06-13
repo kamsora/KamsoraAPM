@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>KamsoraAPM.Dashboard.Api</RootNamespace>
+    <AssemblyName>KamsoraAPM.Dashboard.Api</AssemblyName>
+    <Description>REST + SignalR backend for the KamsoraAPM React dashboard. Reads from ClickHouse + PostgreSQL.</Description>
+    <IsPackable>false</IsPackable>
+    <UserSecretsId>kamsora-apm-dashboard-api</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <!-- SignalR ships in the ASP.NET Core 8 framework reference; no separate PackageReference. -->
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="Polly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KamsoraAPM.Contracts\KamsoraAPM.Contracts.csproj" />
+    <ProjectReference Include="..\KamsoraAPM.Storage\KamsoraAPM.Storage.csproj" />
+  </ItemGroup>
+
+</Project>

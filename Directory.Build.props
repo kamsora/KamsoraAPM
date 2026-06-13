@@ -1,0 +1,56 @@
+<Project>
+
+  <!-- Solution-wide build settings. Applied to every csproj under this directory. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>NU1605</WarningsNotAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!--
+      CS1591 — missing xmldoc; allowed for now.
+      CA1848 — LoggerMessage delegates; required in hot paths (Agent, Collector ingestion),
+               currently relaxed solution-wide and re-enabled per-project starting in M2.
+      CA1873 — IsEnabled() guard around expensive log args; already gated by our
+               `EnableDiagnostics` option flag where applicable.
+      CA1305  — IFormatProvider on every conversion; InvariantCulture is the
+                project-wide default. Noisy for log/Serilog configuration calls.
+    -->
+    <NoWarn>$(NoWarn);CS1591;CA1848;CA1873;CA1305</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>KamsoraAPM</Product>
+    <Company>Kamsora</Company>
+    <Authors>Kamsora and KamsoraAPM contributors</Authors>
+    <Copyright>Copyright (c) Kamsora and KamsoraAPM contributors. Licensed under Apache 2.0.</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/kamsora/KamsoraAPM</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/kamsora/KamsoraAPM</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!-- Source-link applied to every packable project so debugger / decompilers
+       can resolve symbols back to the GitHub source on stack traces. -->
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <PackageReference Include="Microsoft.SourceLink.GitHub">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(IsPackable)' != 'false'">
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

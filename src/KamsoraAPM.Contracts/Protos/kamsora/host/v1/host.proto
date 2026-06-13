@@ -1,0 +1,83 @@
+// Copyright 2026 Kamsora and KamsoraAPM contributors.
+// Licensed under the Apache License, Version 2.0.
+//
+// Host-machine telemetry: produced by KamsoraAPM.HostMonitor running as a
+// systemd unit (Linux) or Windows Service. Periodic snapshots of host
+// resources plus per-PID resource attribution so the dashboard can correlate
+// host pressure with specific .NET processes.
+syntax = "proto3";
+
+package kamsora.host.v1;
+
+option csharp_namespace = "KamsoraAPM.Contracts.Host.V1";
+option go_package        = "github.com/kamsora/kamsora-apm/contracts/host/v1;hostv1";
+
+import "kamsora/common/v1/common.proto";
+
+// One sample emitted by HostMonitor. Cadence: 1 Hz by default, configurable.
+message HostSnapshot {
+  kamsora.common.v1.Resource resource              = 1; // host.name, host.id, os.type, os.version
+  fixed64                    time_unix_nano        = 2;
+
+  CpuSample        cpu        = 3;
+  MemorySample     memory     = 4;
+  repeated DiskSample        disks      = 5;
+  repeated NetworkSample     networks   = 6;
+  repeated ProcessSample     processes  = 7;
+}
+
+message CpuSample {
+  uint32 logical_cores       = 1;
+  double load_1m             = 2;
+  double load_5m             = 3;
+  double load_15m            = 4;
+  // Aggregated across all cores. 0.0 .. 1.0
+  double utilization_user    = 5;
+  double utilization_system  = 6;
+  double utilization_iowait  = 7;
+  double utilization_idle    = 8;
+}
+
+message MemorySample {
+  uint64 total_bytes        = 1;
+  uint64 available_bytes    = 2;
+  uint64 used_bytes         = 3;
+  uint64 swap_total_bytes   = 4;
+  uint64 swap_used_bytes    = 5;
+}
+
+message DiskSample {
+  string device              = 1; // e.g. "/dev/nvme0n1" or "C:"
+  string mountpoint          = 2;
+  uint64 total_bytes         = 3;
+  uint64 used_bytes          = 4;
+  uint64 reads_per_sec       = 5;
+  uint64 writes_per_sec      = 6;
+  uint64 read_bytes_per_sec  = 7;
+  uint64 write_bytes_per_sec = 8;
+}
+
+message NetworkSample {
+  string interface_name      = 1;
+  uint64 rx_bytes_per_sec    = 2;
+  uint64 tx_bytes_per_sec    = 3;
+  uint64 rx_packets_per_sec  = 4;
+  uint64 tx_packets_per_sec  = 5;
+  uint64 rx_errors           = 6;
+  uint64 tx_errors           = 7;
+}
+
+// Per-process resource attribution. Limited to the top N hottest processes
+// (default 50) to keep payload bounded.
+message ProcessSample {
+  uint32 pid             = 1;
+  string command         = 2;
+  string user            = 3;
+  // .NET process metadata, if HostMonitor managed to introspect it.
+  string runtime_version = 4;   // e.g. "8.0.11"
+  string service_name    = 5;   // matches Agent's options.ServiceName when known
+  double cpu_utilization = 6;   // 0.0 .. 1.0 of one core
+  uint64 rss_bytes       = 7;
+  uint32 thread_count    = 8;
+  uint32 handle_count    = 9;
+}

@@ -1,0 +1,82 @@
+# KamsoraAPM development dependencies — runs only the databases.
+# Used by:
+#   * Local dev when iterating on services outside Docker
+#   * Integration tests in CI when Testcontainers is unavailable
+#
+# bring up:  docker compose -f deploy/docker/docker-compose.deps.yml up -d
+# tear down: docker compose -f deploy/docker/docker-compose.deps.yml down -v
+
+name: kamsora-apm-deps
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kamsora-apm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kamsora_apm
+      POSTGRES_USER: kamsora
+      # Standalone deps profile falls back to the dev password; the full apps
+      # stack passes the value from deploy/docker/.env. NOTE: Postgres only
+      # applies this on a FRESH volume — `docker volume rm kamsora-apm-postgres-data`
+      # if you change it later.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kamsora_dev_only_change_me}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      # Host port shifted to 15432 because another project already uses 5432.
+      # Inside the docker network the container is still on 5432, so
+      # docker-network-attached services don't need to change.
+      - "15432:5432"
+    volumes:
+      - kamsora-postgres-data:/var/lib/postgresql/data
+      - ../sql/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kamsora -d kamsora_apm"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    command: >
+      postgres
+        -c shared_preload_libraries=pg_stat_statements
+        -c pg_stat_statements.track=all
+        -c max_connections=200
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.10
+    container_name: kamsora-apm-clickhouse
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    environment:
+      CLICKHOUSE_DB: kamsora_apm
+      CLICKHOUSE_USER: kamsora
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-kamsora_dev_only_change_me}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      # Host ports shifted because another ClickHouse already uses 8123/9000.
+      # Inside the docker network the container is still on 8123 and 9000.
+      - "18123:8123"  # HTTP
+      - "19000:9000"  # Native TCP
+    volumes:
+      - kamsora-clickhouse-data:/var/lib/clickhouse
+      - kamsora-clickhouse-logs:/var/log/clickhouse-server
+      - ../sql/clickhouse:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  kamsora-postgres-data:
+    name: kamsora-apm-postgres-data
+  kamsora-clickhouse-data:
+    name: kamsora-apm-clickhouse-data
+  kamsora-clickhouse-logs:
+    name: kamsora-apm-clickhouse-logs
+
+networks:
+  default:
+    name: kamsora-apm-net

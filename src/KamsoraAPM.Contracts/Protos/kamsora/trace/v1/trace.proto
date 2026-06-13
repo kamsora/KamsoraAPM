@@ -1,0 +1,86 @@
+// Copyright 2026 Kamsora and KamsoraAPM contributors.
+// Licensed under the Apache License, Version 2.0.
+//
+// Distributed-tracing wire format. Mirrors the OTLP trace.proto so that an
+// OTLP exporter from any language can be retargeted at the KamsoraAPM
+// Collector with only an endpoint change.
+syntax = "proto3";
+
+package kamsora.trace.v1;
+
+option csharp_namespace = "KamsoraAPM.Contracts.Trace.V1";
+option go_package        = "github.com/kamsora/kamsora-apm/contracts/trace/v1;tracev1";
+
+import "kamsora/common/v1/common.proto";
+
+// A collection of Spans grouped by the Resource that produced them.
+message ResourceSpans {
+  kamsora.common.v1.Resource resource     = 1;
+  repeated ScopeSpans        scope_spans  = 2;
+  string                     schema_url   = 3;
+}
+
+// A collection of Spans produced by a single InstrumentationScope.
+message ScopeSpans {
+  kamsora.common.v1.InstrumentationScope scope      = 1;
+  repeated Span                           spans      = 2;
+  string                                  schema_url = 3;
+}
+
+// A single Span. trace_id is 16 raw bytes, span_id is 8 raw bytes
+// (binary, not hex) — identical to OTLP.
+message Span {
+  bytes  trace_id              = 1;
+  bytes  span_id               = 2;
+  string trace_state           = 3;
+  bytes  parent_span_id        = 4;
+  string name                  = 5;
+  SpanKind kind                = 6;
+  fixed64 start_time_unix_nano = 7;
+  fixed64 end_time_unix_nano   = 8;
+
+  repeated kamsora.common.v1.KeyValue attributes               = 9;
+  uint32                              dropped_attributes_count = 10;
+
+  repeated Event events                  = 11;
+  uint32         dropped_events_count    = 12;
+  repeated Link  links                   = 13;
+  uint32         dropped_links_count     = 14;
+
+  Status status                          = 15;
+
+  enum SpanKind {
+    SPAN_KIND_UNSPECIFIED = 0;
+    SPAN_KIND_INTERNAL    = 1;
+    SPAN_KIND_SERVER      = 2;
+    SPAN_KIND_CLIENT      = 3;
+    SPAN_KIND_PRODUCER    = 4;
+    SPAN_KIND_CONSUMER    = 5;
+  }
+
+  message Event {
+    fixed64 time_unix_nano                                    = 1;
+    string  name                                              = 2;
+    repeated kamsora.common.v1.KeyValue attributes            = 3;
+    uint32                              dropped_attributes_count = 4;
+  }
+
+  message Link {
+    bytes  trace_id                                           = 1;
+    bytes  span_id                                            = 2;
+    string trace_state                                        = 3;
+    repeated kamsora.common.v1.KeyValue attributes            = 4;
+    uint32                              dropped_attributes_count = 5;
+  }
+}
+
+message Status {
+  string     message = 2;
+  StatusCode code    = 3;
+
+  enum StatusCode {
+    STATUS_CODE_UNSET = 0;
+    STATUS_CODE_OK    = 1;
+    STATUS_CODE_ERROR = 2;
+  }
+}

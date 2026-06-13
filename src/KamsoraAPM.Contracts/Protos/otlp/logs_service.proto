@@ -1,0 +1,30 @@
+// Copyright 2026 Kamsora and KamsoraAPM contributors.
+// Licensed under the Apache License, Version 2.0.
+//
+// Standard OTLP/gRPC logs ingestion. See trace_service.proto for the
+// wire-compatibility rationale. Route:
+//   /opentelemetry.proto.collector.logs.v1.LogsService/Export
+syntax = "proto3";
+
+package opentelemetry.proto.collector.logs.v1;
+
+option csharp_namespace = "KamsoraAPM.Contracts.Otlp.Logs.V1";
+
+import "kamsora/logs/v1/logs.proto";
+
+service LogsService {
+  rpc Export(ExportLogsServiceRequest) returns (ExportLogsServiceResponse);
+}
+
+message ExportLogsServiceRequest {
+  repeated kamsora.logs.v1.ResourceLogs resource_logs = 1;
+}
+
+message ExportLogsServiceResponse {
+  ExportLogsPartialSuccess partial_success = 1;
+}
+
+message ExportLogsPartialSuccess {
+  int64  rejected_log_records = 1;
+  string error_message        = 2;
+}

@@ -1,0 +1,69 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 120
+
+[*.{json,yml,yaml,jsx,tsx,ts,js,mjs,cjs,html,css,scss,md}]
+indent_size = 2
+
+[*.{csproj,vbproj,proj,nuspec,props,targets,xml,xaml,resx,config}]
+indent_size = 2
+
+[*.{ps1,psm1,psd1}]
+end_of_line = crlf
+
+[*.{cmd,bat}]
+end_of_line = crlf
+
+[*.{md,mdx}]
+trim_trailing_whitespace = false
+
+# ---- C# style ----
+[*.cs]
+indent_size = 4
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_between_query_expression_clauses = true
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_preserve_single_line_blocks = true
+csharp_preserve_single_line_statements = false
+csharp_prefer_braces = true:suggestion
+
+# Usings
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_property = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_event = false:warning
+dotnet_style_predefined_type_for_locals_parameters_members = true:warning
+dotnet_style_predefined_type_for_member_access = true:warning
+dotnet_style_readonly_field = true:warning
+
+# Naming
+dotnet_naming_rule.private_const_fields_pascal.severity = warning
+dotnet_naming_rule.private_const_fields_pascal.symbols = private_const_fields
+dotnet_naming_rule.private_const_fields_pascal.style = pascal_case_style
+dotnet_naming_symbols.private_const_fields.applicable_kinds = field
+dotnet_naming_symbols.private_const_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_const_fields.required_modifiers = const
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+
+# Performance / correctness
+dotnet_diagnostic.CA1825.severity = warning   # Empty array
+dotnet_diagnostic.CA1834.severity = warning   # StringBuilder.Append(char)
+dotnet_diagnostic.CA1841.severity = warning   # Dictionary.Keys.Contains
+dotnet_diagnostic.CA1845.severity = warning   # Span string.Concat
+dotnet_diagnostic.CA2007.severity = none      # ConfigureAwait — app code, not library

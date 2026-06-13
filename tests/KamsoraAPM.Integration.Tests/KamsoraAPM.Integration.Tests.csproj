@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>KamsoraAPM.Integration.Tests</RootNamespace>
+    <AssemblyName>KamsoraAPM.Integration.Tests</AssemblyName>
+    <Description>End-to-end integration tests. Spins up real ClickHouse and Postgres via Testcontainers, runs Agent -> Collector -> Storage flow.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.ClickHouse" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KamsoraAPM.Agent\KamsoraAPM.Agent.csproj" />
+    <ProjectReference Include="..\..\src\KamsoraAPM.Collector\KamsoraAPM.Collector.csproj" />
+    <ProjectReference Include="..\..\src\KamsoraAPM.Storage\KamsoraAPM.Storage.csproj" />
+    <ProjectReference Include="..\..\src\KamsoraAPM.Dashboard.Api\KamsoraAPM.Dashboard.Api.csproj" />
+  </ItemGroup>
+
+</Project>

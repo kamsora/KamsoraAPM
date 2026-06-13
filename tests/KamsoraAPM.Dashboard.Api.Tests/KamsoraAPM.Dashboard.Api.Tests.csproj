@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>KamsoraAPM.Dashboard.Api.Tests</RootNamespace>
+    <AssemblyName>KamsoraAPM.Dashboard.Api.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KamsoraAPM.Dashboard.Api\KamsoraAPM.Dashboard.Api.csproj" />
+  </ItemGroup>
+
+</Project>

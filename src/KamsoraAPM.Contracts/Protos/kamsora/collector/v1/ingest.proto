@@ -1,0 +1,90 @@
+// Copyright 2026 Kamsora and KamsoraAPM contributors.
+// Licensed under the Apache License, Version 2.0.
+//
+// The gRPC ingestion surface exposed by KamsoraAPM.Collector.
+//
+// Wire format: identical message shapes as OTLP (we re-declare them in our
+// own packages so the contract library is self-contained; an OTLP-shim
+// service is added in M2 — see ADR-0004).
+//
+// Authentication: gRPC metadata.
+//   `x-kamsora-tenant`   = tenant UUID
+//   `x-kamsora-api-key`  = full secret (server hashes + compares)
+syntax = "proto3";
+
+package kamsora.collector.v1;
+
+option csharp_namespace = "KamsoraAPM.Contracts.Collector.V1";
+option go_package        = "github.com/kamsora/kamsora-apm/contracts/collector/v1;collectorv1";
+
+import "kamsora/trace/v1/trace.proto";
+import "kamsora/metrics/v1/metrics.proto";
+import "kamsora/logs/v1/logs.proto";
+import "kamsora/host/v1/host.proto";
+import "kamsora/profiles/v1/profiles.proto";
+
+// ---- Ingestion ----------------------------------------------------------
+
+service TraceService {
+  rpc Export(ExportTraceRequest) returns (ExportTraceResponse);
+}
+message ExportTraceRequest  { repeated kamsora.trace.v1.ResourceSpans resource_spans = 1; }
+message ExportTraceResponse {
+  ExportPartialSuccess partial_success = 1;
+}
+
+service MetricsService {
+  rpc Export(ExportMetricsRequest) returns (ExportMetricsResponse);
+}
+message ExportMetricsRequest  { repeated kamsora.metrics.v1.ResourceMetrics resource_metrics = 1; }
+message ExportMetricsResponse {
+  ExportPartialSuccess partial_success = 1;
+}
+
+service LogsService {
+  rpc Export(ExportLogsRequest) returns (ExportLogsResponse);
+}
+message ExportLogsRequest  { repeated kamsora.logs.v1.ResourceLogs resource_logs = 1; }
+message ExportLogsResponse {
+  ExportPartialSuccess partial_success = 1;
+}
+
+service HostService {
+  rpc Export(ExportHostRequest) returns (ExportHostResponse);
+}
+message ExportHostRequest  { repeated kamsora.host.v1.HostSnapshot snapshots = 1; }
+message ExportHostResponse {}
+
+service ProfilesService {
+  rpc Export(ExportProfilesRequest) returns (ExportProfilesResponse);
+}
+message ExportProfilesRequest  { repeated kamsora.profiles.v1.ResourceProfiles resource_profiles = 1; }
+message ExportProfilesResponse {
+  ExportPartialSuccess partial_success = 1;
+}
+
+// Mirrors OTLP partial-success semantics: server accepted the batch but
+// rejected `rejected_*` items. The Agent must NOT retry on partial success.
+message ExportPartialSuccess {
+  int64  rejected_items = 1;
+  string error_message  = 2;
+}
+
+// ---- Health / version negotiation --------------------------------------
+
+service IngestControl {
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+message PingRequest  {
+  string agent_version = 1;
+  string service_name  = 2;
+}
+message PingResponse {
+  string  collector_version = 1;
+  uint32  min_agent_version = 2; // protocol version, not SemVer
+  bool    accept_traces     = 3;
+  bool    accept_metrics    = 4;
+  bool    accept_logs       = 5;
+  bool    accept_host       = 6;
+  bool    accept_profiles   = 7;
+}

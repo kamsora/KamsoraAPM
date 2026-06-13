@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>KamsoraAPM.Load.Tests</RootNamespace>
+    <AssemblyName>KamsoraAPM.Load.Tests</AssemblyName>
+    <Description>Load-test harness. NBomber verifies Collector 25k RPS; BenchmarkDotNet verifies Agent &lt;2ms overhead.</Description>
+    <IsTestProject>false</IsTestProject>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NBomber" />
+    <PackageReference Include="NBomber.Http" />
+    <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="Grpc.Net.Client" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KamsoraAPM.Agent\KamsoraAPM.Agent.csproj" />
+    <ProjectReference Include="..\..\src\KamsoraAPM.Contracts\KamsoraAPM.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

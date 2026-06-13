@@ -1,0 +1,27 @@
+# KamsoraAPM Dashboard SPA — production container image.
+# Vite-built static bundle served by nginx; no API proxy here, Caddy fronts everything.
+
+# ---------- Stage 1: build the SPA ----------
+FROM node:20-alpine AS build
+WORKDIR /src
+
+# Restore deps first for cache.
+COPY web/kamsora-apm-dashboard/package*.json ./
+RUN npm ci --no-audit --no-fund
+
+# Now copy source + build.
+COPY web/kamsora-apm-dashboard/ ./
+RUN npm run build
+
+# ---------- Stage 2: nginx runtime ----------
+FROM nginx:1.27-alpine AS runtime
+
+# Drop the default nginx config and use ours.
+RUN rm /etc/nginx/conf.d/default.conf
+COPY deploy/docker/dashboard-nginx.conf /etc/nginx/conf.d/dashboard.conf
+
+COPY --from=build /src/dist /usr/share/nginx/html
+
+EXPOSE 80
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1

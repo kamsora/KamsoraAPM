@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>KamsoraAPM.Collector.Tests</RootNamespace>
+    <AssemblyName>KamsoraAPM.Collector.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KamsoraAPM.Collector\KamsoraAPM.Collector.csproj" />
+  </ItemGroup>
+
+</Project>

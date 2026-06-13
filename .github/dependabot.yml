@@ -1,0 +1,69 @@
+version: 2
+
+# Pre-launch posture: monthly cadence + aggressively grouped PRs so we get
+# ONE NuGet PR and ONE npm PR per ecosystem per month instead of dozens of
+# individual bumps. After the public launch we can tighten this back to
+# weekly if security flow warrants it.
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: monthly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # One PR per category. The categories are coarse on purpose so
+      # routine version bumps land as a single review per area.
+      otel:
+        patterns: ["OpenTelemetry*"]
+      grpc-protobuf:
+        patterns: ["Grpc.*", "Google.Protobuf"]
+      serilog:
+        patterns: ["Serilog*"]
+      microsoft-extensions:
+        patterns: ["Microsoft.Extensions.*", "Microsoft.AspNetCore.*"]
+      testing:
+        patterns:
+          - "xunit*"
+          - "FluentAssertions"
+          - "NSubstitute"
+          - "Microsoft.NET.Test.Sdk"
+          - "coverlet.collector"
+          - "Testcontainers*"
+          - "BenchmarkDotNet"
+          - "NBomber*"
+      storage:
+        patterns: ["Npgsql", "ClickHouse.Client", "Dapper"]
+      # Everything not matched above (Polly, System.IdentityModel, etc.)
+      # still groups into a single "misc" PR via the default group.
+      everything-else:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: "/deploy/docker"
+    schedule:
+      interval: monthly
+    groups:
+      docker-images:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: "/web/kamsora-apm-dashboard"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      react-ecosystem:
+        patterns: ["react*", "@types/react*", "@vitejs/*", "vite*"]
+      tanstack:
+        patterns: ["@tanstack/*"]
+      everything-else:
+        patterns: ["*"]

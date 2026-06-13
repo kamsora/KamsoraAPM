@@ -1,0 +1,30 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);CS1591;CA1707;CA2007;CA1711</NoWarn>
+    <!--
+      CS1591 / CA1707 / CA2007 — xmldoc / underscore-in-test-name / ConfigureAwait
+                                conventions don't apply inside test projects.
+      CA1711                   — conflicts with xUnit's mandated `*Collection`
+                                naming for collection-fixture marker types.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

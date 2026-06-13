@@ -1,0 +1,165 @@
+# Release pipeline — runs when a version tag is pushed:
+#
+#   git tag v0.2.0 && git push origin v0.2.0
+#
+# Produces:
+#   * KamsoraAPM.Agent nupkg pushed to NuGet.org (version comes from the
+#     Agent csproj; --skip-duplicate makes re-tagging safe). Requires the
+#     NUGET_API_KEY repository secret; the step is skipped if it is absent.
+#   * Collector / Dashboard.Api / Dashboard SPA images pushed to GHCR,
+#     tagged with the release version and `latest`.
+#   * A GitHub Release with auto-generated notes and the nupkg attached.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write   # create the GitHub Release
+  packages: write   # push images to GHCR
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  build-and-test:
+    name: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore KamsoraAPM.sln
+
+      - name: Build
+        run: dotnet build KamsoraAPM.sln --configuration Release --no-restore -warnaserror
+
+      - name: Test (unit)
+        run: >
+          dotnet test KamsoraAPM.sln
+          --configuration Release
+          --no-build
+          --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~Load"
+
+      - name: Pack Agent NuGet
+        run: >
+          dotnet pack src/KamsoraAPM.Agent/KamsoraAPM.Agent.csproj
+          --configuration Release
+          --no-build
+          --output artifacts/nupkgs
+
+      - name: Upload nupkg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkgs
+          path: artifacts/nupkgs/*.nupkg
+
+  publish-nuget:
+    name: publish-nuget
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Download nupkg artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nupkgs
+          path: nupkgs
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Push to NuGet.org
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::warning::NUGET_API_KEY secret not configured — skipping NuGet.org publish."
+            exit 0
+          fi
+          dotnet nuget push "nupkgs/*.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+  docker-images:
+    name: docker-images (${{ matrix.image.name }})
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: kamsora-apm-collector
+            dockerfile: deploy/docker/Dockerfile.collector
+          - name: kamsora-apm-dashboard-api
+            dockerfile: deploy/docker/Dockerfile.dashboard-api
+          - name: kamsora-apm-dashboard
+            dockerfile: deploy/docker/Dockerfile.dashboard
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
+
+  github-release:
+    name: github-release
+    runs-on: ubuntu-latest
+    needs: [publish-nuget, docker-images]
+    steps:
+      - name: Download nupkg artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nupkgs
+          path: nupkgs
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: nupkgs/*.nupkg
