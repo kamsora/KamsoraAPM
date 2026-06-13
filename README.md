@@ -187,7 +187,7 @@ Operational notes:
   /docker                      quickstart compose + Dockerfiles
   /production                  hardened TLS stack + backups + deploy guide
   /sql                         Postgres + ClickHouse schemas
-  /systemd, /windows-service   HostMonitor installers
+  /windows-service             HostMonitor Windows Service installer (Linux systemd: roadmap)
 /tests                         unit + integration tests
 /docs                          ADRs, ingest & deploy guides
 /sample-apps                   sample Web API with the Agent attached

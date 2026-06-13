@@ -170,10 +170,59 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
 
+  publish-hostmonitor:
+    name: publish-hostmonitor (win-x64)
+    runs-on: windows-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.202
+
+      # Self-contained single-file: the target Windows server needs no .NET
+      # runtime. No trimming - the config binder relies on reflection.
+      # DebugType=none + GenerateDocumentationFile=false keep the bundle to just
+      # the .exe, appsettings.json, and the one native shim.
+      - name: Publish self-contained win-x64
+        shell: pwsh
+        run: >
+          dotnet publish src/KamsoraAPM.HostMonitor/KamsoraAPM.HostMonitor.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:DebugType=none
+          -p:GenerateDocumentationFile=false
+          -o staging/hostmonitor
+
+      - name: Bundle install scripts + readme
+        shell: pwsh
+        run: |
+          Copy-Item deploy/windows-service/install-service.ps1   staging/hostmonitor/
+          Copy-Item deploy/windows-service/uninstall-service.ps1 staging/hostmonitor/
+          Copy-Item deploy/windows-service/README.md             staging/hostmonitor/
+
+      - name: Zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/hostmonitor | Out-Null
+          Compress-Archive -Path staging/hostmonitor/* -DestinationPath artifacts/hostmonitor/kamsora-apm-hostmonitor-win-x64.zip -Force
+
+      - name: Upload HostMonitor artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostmonitor-win-x64
+          path: artifacts/hostmonitor/*.zip
+
   github-release:
     name: github-release
     runs-on: ubuntu-latest
-    needs: [publish-nuget, docker-images]
+    needs: [publish-nuget, docker-images, publish-hostmonitor]
     steps:
       - name: Download nupkg artifact
         uses: actions/download-artifact@v4
@@ -181,8 +230,16 @@ jobs:
           name: nupkgs
           path: nupkgs
 
+      - name: Download HostMonitor artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hostmonitor-win-x64
+          path: hostmonitor
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: nupkgs/*.nupkg
+          files: |
+            nupkgs/*.nupkg
+            hostmonitor/*.zip
