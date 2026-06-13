@@ -35,10 +35,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET 8
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.202
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -90,10 +92,12 @@ jobs:
           name: nupkgs
           path: nupkgs
 
-      - name: Setup .NET 8
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.202
 
       # Trusted Publishing: exchange the GitHub OIDC token for a short-lived
       # NuGet API key (valid ~1 hour). No long-lived secret is stored. Requires
