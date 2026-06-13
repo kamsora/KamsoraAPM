@@ -88,7 +88,7 @@ export default function AcceptInvitePage() {
     <div className="login-shell">
       <form className="card login-card" onSubmit={onSubmit}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-          <span style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg, #7C5CFF, #5B89FF)' }} />
+          <img src="/kamsora-icon.png" alt="KamsoraAPM" width={36} height={36} style={{ borderRadius: 8 }} />
           <div>
             <h1>Accept invite</h1>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Join a KamsoraAPM tenant</p>

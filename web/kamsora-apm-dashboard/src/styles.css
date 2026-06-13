@@ -184,8 +184,7 @@ tr:hover td { background: rgba(139, 124, 255, 0.05); }
   width: 28px;
   height: 28px;
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--accent), var(--blue));
-  box-shadow: 0 0 18px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: url(/kamsora-icon.png) center / contain no-repeat;
   display: inline-block;
   flex-shrink: 0;
 }
