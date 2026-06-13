@@ -1,0 +1,30 @@
+// Copyright 2026 Kamsora Technologies Pvt. Ltd. and KamsoraAPM contributors.
+// Licensed under the Apache License, Version 2.0.
+//
+// Standard OTLP/gRPC metrics ingestion. See trace_service.proto for the
+// wire-compatibility rationale. Route:
+//   /opentelemetry.proto.collector.metrics.v1.MetricsService/Export
+syntax = "proto3";
+
+package opentelemetry.proto.collector.metrics.v1;
+
+option csharp_namespace = "KamsoraAPM.Contracts.Otlp.Metrics.V1";
+
+import "kamsora/metrics/v1/metrics.proto";
+
+service MetricsService {
+  rpc Export(ExportMetricsServiceRequest) returns (ExportMetricsServiceResponse);
+}
+
+message ExportMetricsServiceRequest {
+  repeated kamsora.metrics.v1.ResourceMetrics resource_metrics = 1;
+}
+
+message ExportMetricsServiceResponse {
+  ExportMetricsPartialSuccess partial_success = 1;
+}
+
+message ExportMetricsPartialSuccess {
+  int64  rejected_data_points = 1;
+  string error_message        = 2;
+}

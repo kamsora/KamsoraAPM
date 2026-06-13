@@ -1,0 +1,72 @@
+name: Bug report
+description: Something is misbehaving in KamsoraAPM.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill out the form below
+        - it helps us reproduce the issue quickly.
+
+        For **security vulnerabilities**, do not file a public issue. See
+        [SECURITY.md](../../SECURITY.md) instead.
+  - type: input
+    id: version
+    attributes:
+      label: KamsoraAPM version or commit SHA
+      placeholder: "v0.1.0 or 1a2b3c4"
+    validations:
+      required: true
+  - type: input
+    id: dotnet
+    attributes:
+      label: .NET version (output of `dotnet --info`)
+      placeholder: "8.0.11"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Host OS / architecture
+      placeholder: "Ubuntu 24.04 x86_64 / Windows 11 / macOS Sonoma arm64"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Agent (NuGet)
+        - HostMonitor (daemon)
+        - Collector (gRPC API)
+        - Dashboard.Api
+        - Web dashboard (React SPA)
+        - Docker/deployment
+        - Docs
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: A minimal reproduction is invaluable. A sample repo is ideal.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Please paste structured logs from Agent + Collector with LogLevel=Debug if possible.
+      render: shell

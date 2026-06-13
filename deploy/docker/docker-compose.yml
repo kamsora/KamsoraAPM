@@ -1,0 +1,113 @@
+# KamsoraAPM full stack - quickstart docker-compose for self-hosting.
+#
+# First run:
+#   cp deploy/docker/.env.example deploy/docker/.env   # then edit the values
+#   docker compose -f deploy/docker/docker-compose.yml --profile apps up -d --build
+#
+# Upgrade:
+#   docker compose -f deploy/docker/docker-compose.yml --profile apps up -d --build
+#
+# Profiles:
+#   --profile deps    just Postgres + ClickHouse (local dev outside Docker)
+#   --profile apps    full stack: databases + Collector + Dashboard.Api + SPA
+#
+# After start:
+#   Dashboard:        http://localhost:3000        (login = SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD)
+#   Collector gRPC:   http://localhost:5080        (Agent / OTLP endpoint, HTTP/2)
+#   Collector health: http://localhost:5081/healthz  and  /readyz, /stats
+#
+# ClickHouse schema migrations run automatically inside the Collector at startup.
+
+name: kamsora-apm
+
+services:
+  postgres:
+    extends:
+      file: docker-compose.deps.yml
+      service: postgres
+    profiles: ["deps", "apps"]
+
+  clickhouse:
+    extends:
+      file: docker-compose.deps.yml
+      service: clickhouse
+    profiles: ["deps", "apps"]
+
+  collector:
+    image: ghcr.io/kamsora/kamsora-apm-collector:${KAMSORA_APM_VERSION:-edge}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.collector
+    container_name: kamsora-apm-collector
+    restart: unless-stopped
+    profiles: ["apps"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Kestrel endpoints come from the app's appsettings.json:
+      #   5080 = gRPC ingest (HTTP/2), 5081 = health/stats (HTTP/1).
+      KamsoraApm__Postgres__ConnectionString: "Host=postgres;Port=5432;Database=kamsora_apm;Username=kamsora;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/docker/.env (copy .env.example)}"
+      KamsoraApm__ClickHouse__ConnectionString: "Host=clickhouse;Port=8123;Database=kamsora_apm;Username=kamsora;Password=${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in deploy/docker/.env (copy .env.example)}"
+    ports:
+      - "5080:5080"   # gRPC ingest (Agent + standard OTLP)
+      - "5081:5081"   # health / readiness / stats
+
+  dashboard-api:
+    image: ghcr.io/kamsora/kamsora-apm-dashboard-api:${KAMSORA_APM_VERSION:-edge}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.dashboard-api
+    container_name: kamsora-apm-dashboard-api
+    restart: unless-stopped
+    profiles: ["apps"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://+:5090"
+      KamsoraApm__Postgres__ConnectionString: "Host=postgres;Port=5432;Database=kamsora_apm;Username=kamsora;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/docker/.env (copy .env.example)}"
+      KamsoraApm__ClickHouse__ConnectionString: "Host=clickhouse;Port=8123;Database=kamsora_apm;Username=kamsora;Password=${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in deploy/docker/.env (copy .env.example)}"
+      # Generate with:  openssl rand -base64 48
+      KamsoraApm__Auth__JwtSigningKey: "${KAMSORA_APM_JWT_SIGNING_KEY:?Set KAMSORA_APM_JWT_SIGNING_KEY in deploy/docker/.env (openssl rand -base64 48)}"
+      # First-run admin account + tenant. An API key for the Agent is printed
+      # to the dashboard-api logs on first start (IssueDefaultApiKey).
+      KamsoraApm__Auth__SeedTenant__TenantName: "${SEED_TENANT_NAME:-My Company}"
+      KamsoraApm__Auth__SeedTenant__TenantSlug: "${SEED_TENANT_SLUG:-my-company}"
+      KamsoraApm__Auth__SeedTenant__AdminEmail: "${SEED_ADMIN_EMAIL:?Set SEED_ADMIN_EMAIL in deploy/docker/.env}"
+      KamsoraApm__Auth__SeedTenant__AdminPassword: "${SEED_ADMIN_PASSWORD:?Set SEED_ADMIN_PASSWORD in deploy/docker/.env}"
+      KamsoraApm__Auth__SeedTenant__IssueDefaultApiKey: "true"
+    ports:
+      - "5090:5090"
+
+  web:
+    image: ghcr.io/kamsora/kamsora-apm-dashboard:${KAMSORA_APM_VERSION:-edge}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.dashboard
+    container_name: kamsora-apm-dashboard
+    restart: unless-stopped
+    profiles: ["apps"]
+    depends_on:
+      dashboard-api:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+
+volumes:
+  kamsora-postgres-data:
+    name: kamsora-apm-postgres-data
+  kamsora-clickhouse-data:
+    name: kamsora-apm-clickhouse-data
+  kamsora-clickhouse-logs:
+    name: kamsora-apm-clickhouse-logs
+
+networks:
+  default:
+    name: kamsora-apm-net

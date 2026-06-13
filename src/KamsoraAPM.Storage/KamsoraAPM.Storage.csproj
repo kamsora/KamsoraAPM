@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>KamsoraAPM.Storage</RootNamespace>
+    <AssemblyName>KamsoraAPM.Storage</AssemblyName>
+    <Description>Raw-ADO.NET storage layer for KamsoraAPM. ClickHouse for time-series telemetry, PostgreSQL for relational metadata.</Description>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="ClickHouse.Client" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Polly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KamsoraAPM.Contracts\KamsoraAPM.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ClickHouse schema scripts ride inside the assembly so the
+         ClickHouseMigrationRunner can apply them at Collector startup on ANY
+         volume - not just the empty-volume docker-entrypoint case. -->
+    <EmbeddedResource Include="..\..\deploy\sql\clickhouse\*.sql" LinkBase="Migrations" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>KamsoraAPM.HostMonitor.Tests</RootNamespace>
+    <AssemblyName>KamsoraAPM.HostMonitor.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KamsoraAPM.HostMonitor\KamsoraAPM.HostMonitor.csproj" />
+  </ItemGroup>
+
+</Project>

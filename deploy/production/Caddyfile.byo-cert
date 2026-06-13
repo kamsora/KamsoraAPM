@@ -1,0 +1,98 @@
+﻿# KamsoraAPM production Caddyfile â€” Bring-Your-Own wildcard cert variant.
+#
+# Use this Caddyfile when you have an existing wildcard cert (e.g. from
+# DigiCert / GoDaddy / your corporate PKI) instead of letting Caddy issue
+# from Let's Encrypt.
+#
+# Expected mount:
+#   /certs/cert.pem   â€” public cert + intermediate chain (PEM)
+#   /certs/key.pem    â€” private key (PEM, unencrypted)
+#
+# Convert from a .pfx file:
+#   openssl pkcs12 -in your.pfx -out cert.pem -clcerts -nokeys
+#   openssl pkcs12 -in your.pfx -out key.pem  -nocerts -nodes
+#
+# Required env vars:
+#   KAMSORA_DOMAIN   â€” full hostname for the dashboard, e.g. apm.example.com
+#                      (must be covered by the wildcard cert)
+#
+# NOT required (vs the Let's Encrypt variant):
+#   KAMSORA_ACME_EMAIL â€” Caddy doesn't talk to Let's Encrypt in this mode.
+
+{
+    # Disable automatic HTTPS â€” we explicitly mount our own cert per site below.
+    auto_https off
+
+    log {
+        output file /data/caddy_access.log {
+            roll_size 100mb
+            roll_keep 7
+        }
+        format console
+    }
+}
+
+# ---------- Dashboard (HTTPS on 443) ----------
+{$KAMSORA_DOMAIN}:443 {
+    tls /certs/cert.pem /certs/key.pem
+
+    encode zstd gzip
+
+    @assets path /assets/*
+    header @assets Cache-Control "public, max-age=31536000, immutable"
+
+    handle /api/* {
+        reverse_proxy dashboard-api:5090 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    handle /healthz {
+        reverse_proxy dashboard-api:5090
+    }
+    handle /readyz {
+        reverse_proxy dashboard-api:5090
+    }
+
+    handle {
+        reverse_proxy dashboard:80
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options    "nosniff"
+        X-Frame-Options           "DENY"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        Permissions-Policy        "geolocation=(), microphone=(), camera=()"
+    }
+
+    log {
+        output file /data/caddy_dashboard.log {
+            roll_size 100mb
+            roll_keep 7
+        }
+    }
+}
+
+# ---------- Optional HTTP â†’ HTTPS redirect (port 80) ----------
+# Comment this whole block out if you can't expose port 80 from your firewall.
+:80 {
+    redir https://{$KAMSORA_DOMAIN}{uri} permanent
+}
+
+# ---------- gRPC ingest (HTTPS + HTTP/2 on 5080) ----------
+{$KAMSORA_DOMAIN}:5080 {
+    tls /certs/cert.pem /certs/key.pem {
+        protocols tls1.2 tls1.3
+    }
+
+    reverse_proxy h2c://collector:5080
+
+    log {
+        output file /data/caddy_ingest.log {
+            roll_size 100mb
+            roll_keep 7
+        }
+    }
+}

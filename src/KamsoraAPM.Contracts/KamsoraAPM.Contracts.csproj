@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>KamsoraAPM.Contracts</RootNamespace>
+    <AssemblyName>KamsoraAPM.Contracts</AssemblyName>
+    <Description>OTLP-compatible Protobuf and gRPC contracts shared by the KamsoraAPM Agent, HostMonitor, Collector, and Dashboard API.</Description>
+    <!--
+      NOT packable. Contracts is an internal implementation detail of the
+      KamsoraAPM stack - the generated client stubs travel embedded inside the
+      KamsoraAPM.Agent NuGet (see Agent.csproj). Other-language SDKs consume the
+      raw .proto files from the GitHub repo, not a published .NET NuGet.
+    -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Protos\**\*.proto" GrpcServices="Both" ProtoRoot="Protos" />
+  </ItemGroup>
+
+</Project>

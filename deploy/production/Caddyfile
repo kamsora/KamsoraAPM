@@ -1,0 +1,89 @@
+# KamsoraAPM production Caddyfile.
+#
+# Caddy 2 handles:
+#   * Automatic TLS via Let's Encrypt (HTTP-01 challenge on port 80, TLS-ALPN-01 on 443)
+#   * Reverse proxy to the SPA + Dashboard.Api on the same hostname
+#   * TLS-terminated gRPC ingestion on a separate port (5080) using the same cert
+#
+# Required env vars (read from .env.production):
+#   KAMSORA_DOMAIN       - fully-qualified domain pointing at this server, e.g. apm.example.com
+#   KAMSORA_ACME_EMAIL   - email for Let's Encrypt cert renewal warnings
+
+# Global options
+{
+    email {$KAMSORA_ACME_EMAIL}
+
+    # Audit log of every TLS issuance + every reverse-proxy upstream pick.
+    log {
+        output file /data/caddy_access.log {
+            roll_size 100mb
+            roll_keep 7
+        }
+        format console
+    }
+}
+
+# ---------- Dashboard (HTTPS on 443, redirects from 80) ----------
+{$KAMSORA_DOMAIN} {
+    encode zstd gzip
+
+    # Long-cache versioned static assets; the SPA emits content-hashed filenames.
+    @assets path /assets/*
+    header @assets Cache-Control "public, max-age=31536000, immutable"
+
+    # API + health endpoints → Dashboard.Api (internal HTTP, no TLS inside the docker network)
+    handle /api/* {
+        reverse_proxy dashboard-api:5090 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    handle /healthz {
+        reverse_proxy dashboard-api:5090
+    }
+    handle /readyz {
+        reverse_proxy dashboard-api:5090
+    }
+
+    # Everything else → SPA
+    handle {
+        reverse_proxy dashboard:80
+    }
+
+    # Security headers - HTTPS-only browser, no clickjacking, strict referrer.
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options    "nosniff"
+        X-Frame-Options           "DENY"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        Permissions-Policy        "geolocation=(), microphone=(), camera=()"
+    }
+
+    log {
+        output file /data/caddy_dashboard.log {
+            roll_size 100mb
+            roll_keep 7
+        }
+    }
+}
+
+# ---------- gRPC ingest (HTTPS + HTTP/2 on 5080) ----------
+# Agents and HostMonitor instances connect here.
+# The cert issued for {$KAMSORA_DOMAIN} on port 443 is reused for 5080.
+{$KAMSORA_DOMAIN}:5080 {
+    # h2c → collector - Caddy talks plain HTTP/2 to the backend, TLS terminates here.
+    reverse_proxy h2c://collector:5080
+
+    tls {
+        protocols tls1.2 tls1.3
+        # ALPN advertises h2 - required by gRPC clients.
+    }
+
+    log {
+        output file /data/caddy_ingest.log {
+            roll_size 100mb
+            roll_keep 7
+        }
+    }
+}

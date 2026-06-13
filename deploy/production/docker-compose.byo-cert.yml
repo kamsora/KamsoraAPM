@@ -1,0 +1,37 @@
+# KamsoraAPM production stack - Bring-Your-Own wildcard cert variant.
+#
+# Same as docker-compose.production.yml except the Caddy service:
+#   * Mounts Caddyfile.byo-cert instead of Caddyfile
+#   * Mounts ./certs (cert.pem + key.pem) read-only at /certs
+#   * Does NOT require KAMSORA_ACME_EMAIL
+#
+# This file is a docker compose OVERLAY - combine it with the base file:
+#   docker compose --env-file .env.production \
+#       -f docker-compose.production.yml \
+#       -f docker-compose.byo-cert.yml \
+#       up -d --build
+#
+# Folder layout expected on the server:
+#   deploy/production/
+#   ├── docker-compose.production.yml
+#   ├── docker-compose.byo-cert.yml
+#   ├── Caddyfile.byo-cert
+#   ├── .env.production
+#   └── certs/
+#       ├── cert.pem    (chmod 0644)
+#       └── key.pem     (chmod 0600 - readable only by root on the host)
+
+services:
+  caddy:
+    volumes:
+      # Override the base file's Caddyfile mount with the BYO variant.
+      - ./Caddyfile.byo-cert:/etc/caddy/Caddyfile:ro
+      # Mount the cert + key directory read-only.
+      - ./certs:/certs:ro
+      # Keep the data + config volumes from the base compose so logs / sessions persist.
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      # ACME email is irrelevant in BYO mode - fed an empty default so the
+      # base compose's `:?` validator doesn't refuse to start.
+      KAMSORA_ACME_EMAIL: "not-used-in-byo-mode"

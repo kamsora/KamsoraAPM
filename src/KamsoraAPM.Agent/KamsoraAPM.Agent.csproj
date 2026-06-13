@@ -1,0 +1,204 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>KamsoraAPM.Agent</RootNamespace>
+    <AssemblyName>KamsoraAPM.Agent</AssemblyName>
+    <Description>KamsoraAPM in-process agent for .NET Core Web APIs. Auto-captures HTTP, HttpClient, SqlClient/Npgsql/MySqlConnector/EF Core spans and forwards over gRPC (OTLP-compatible) to the KamsoraAPM Collector. &lt;2 ms per-request overhead.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageId>KamsoraAPM.Agent</PackageId>
+    <Version>1.4.0</Version>
+    <PackageTags>apm;observability;tracing;opentelemetry;otel;otlp;aspnetcore;dotnet;monitoring;kamsora</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>kamsora-icon.png</PackageIcon>
+    <PackageReleaseNotes>
+      v1.4.0 - OTLP wire-format alignment (BREAKING vs v1.3.x mixed fleets).
+
+      The kamsora.common.v1.AnyValue message now matches OpenTelemetry's
+      AnyValue EXACTLY: int_value is plain int64 (was sint64/ZigZag) and
+      array/kvlist/bytes occupy fields 5/6/7 in OTLP order. This makes the
+      Collector's new standard-OTLP ingest endpoints losslessly compatible
+      with every OpenTelemetry SDK.
+
+      UPGRADE NOTE: run v1.4.0 Agents against a v1.4.0+ Collector. A v1.3.x
+      Agent talking to a v1.4 Collector (or vice versa) mis-decodes INTEGER
+      attribute values (they ZigZag-double or halve - e.g. HTTP status 200
+      reads as 400). String attributes are unaffected. Upgrade both sides
+      together.
+
+      v1.3.2 - M10 first wave: bandwidth + sampling.
+
+      Highlights:
+        * gRPC gzip compression now enabled on all signal exporters
+          (traces, logs, metrics, profiles). Typical bandwidth reduction
+          5-10x for log batches and 3-5x for span / metric batches.
+        * New option KamsoraApm:TraceSampleRatio (default 1.0). Set to
+          0.1 to keep ~10% of root traces by trace-id hash; child spans
+          stay coherent because the decision propagates through the
+          W3C TraceContext sample flag. Defaults preserve v1.3.1
+          behaviour (every trace captured).
+        * Internal: gRPC channel + auth-metadata construction is now
+          centralised so future signals (and the deferred profiling
+          v2 path) pick up the same compression + keepalive tuning.
+
+      v1.3.1 - HOTFIX: v1.3.0 introduced continuous CPU profiling that
+      defaulted to enabled. The EventPipe self-connect path interacted
+      badly with some host configurations (most likely a ThreadPool /
+      diagnostic-port race), causing the host's request loop to stop
+      responding shortly after startup. v1.3.1:
+        * Defaults EnableProfiling to FALSE (was true in v1.3.0).
+        * Only constructs the profiler hosted service when the option
+          is explicitly true, so the EventPipe + TraceEvent stack
+          never participates in the host's startup graph by default.
+      Tracing, metrics, and log capture are unaffected and work as in
+      v1.2.3. To experimentally re-enable profiling once we've shipped
+      the safer in-process EventListener path, set
+      KamsoraApm:EnableProfiling = true on a non-prod copy first.
+
+      v1.3.0 - M9 continuous CPU profiling (4th pillar).
+
+      Highlights:
+        * The Agent now self-connects to the runtime diagnostic port and
+          captures a short CPU sampling profile every minute via EventPipe.
+          Stacks are symbol-resolved through TraceLog, folded, converted to
+          pprof (Google's perftools.profiles.Profile format), and shipped
+          to the KamsoraAPM Collector over gRPC.
+        * New options:
+            - EnableProfiling     (default true)
+            - ProfilingInterval   (default 60s)
+            - ProfilingDuration   (default 10s)
+        * Storing pprof verbatim keeps the captures interoperable with
+          Pyroscope, Parca, Grafana, and `go tool pprof` for offline
+          analysis.
+        * gRPC channel for profiles uses gzip compression - pprof payloads
+          compress 5-10x at the wire.
+
+      v1.2.3 - second log-pipeline fix. Removed the temporary console
+      diagnostics from v1.2.2 now that the upstream + downstream
+      breakages have been pinned down (OTel wiring on the Agent side;
+      FixedString-vs-byte[] serialization on the Collector side).
+      Combined with the matching Collector + ClickHouse schema update,
+      ILogger logs now reach kamsora_apm.logs and appear on the Logs
+      dashboard. Functionally identical to v1.2.2 otherwise.
+
+      v1.2.1 - fixes ILogger logs not flowing to the Collector. The
+      OpenTelemetry logger provider's SP-aware AddProcessor factory is
+      silently no-op in OTel 1.12 when configured via
+      ILoggingBuilder.AddOpenTelemetry(); moving the registration onto
+      the unified AddOpenTelemetry().WithLogging(...) builder restores
+      log export. Functionally identical to v1.2.0 otherwise.
+
+      v1.2.0 - M8 logs + metrics ingest.
+
+      Highlights:
+        * OpenTelemetry Logs integration via Microsoft.Extensions.Logging
+          (ILogger&lt;T&gt;). All structured logs flow to the KamsoraAPM
+          Collector over gRPC and appear on the new Logs dashboard with
+          severity filtering, body search, and per-trace correlation.
+        * OpenTelemetry Metrics integration. Runtime instrumentation
+          (GC, threadpool, exceptions) ships by default. Custom Meters
+          can be added via KamsoraApm:MetricSources.
+        * New options:
+            - EnableLogs            (default true)
+            - EnableMetrics         (default true)
+            - MetricSources         (list of custom Meter names)
+            - MetricExportInterval  (default 30s)
+        * Trace-log correlation: each log record carries the active
+          trace_id + span_id, so opening a trace surfaces its logs and
+          opening a log jumps to its trace.
+
+      v1.1.1 - fixes FileNotFoundException for Google.Protobuf at
+      AddKamsoraApm() startup by exposing Google.Protobuf as a public
+      package dependency (the bundled Contracts.dll needs it at runtime).
+      Functionally identical to v1.1.0 otherwise.
+
+      v1.1.0 - M6 consumer analytics.
+
+      Highlights:
+        * New IConsumerExtractor pipeline tags each inbound span with a
+          consumer id, powering the per-API-key Consumers + Errors
+          dashboards. Configurable via KamsoraApm:ConsumerExtractor with
+          four modes:
+            - JwtClaim (default, claim = "sub")
+            - Header   (default header = "X-API-Consumer")
+            - ClientIp (honors X-Forwarded-For)
+            - None     (disable consumer tagging)
+          All non-JwtClaim modes fall back to client IP by default; set
+          FallbackToClientIp = false to leave anonymous requests untagged.
+        * No new package dependencies - JWT payload is parsed inline.
+
+      v1.0.0 - initial release:
+        * Auto-instruments ASP.NET Core HTTP server, HttpClient, SqlClient
+          (MSSQL). Npgsql, MySqlConnector, and EF Core ActivitySources
+          are captured automatically.
+        * Multi-tenant: every span carries a tenant UUID validated by the
+          Collector.
+        * OTLP-compatible wire format over gRPC.
+        * &lt;2 ms latency overhead per HTTP request under load.
+
+      See https://github.com/kamsora/KamsoraAPM for the Collector + dashboard.
+    </PackageReleaseNotes>
+    <!-- OpenTelemetry.Instrumentation.SqlClient is shipped as a beta package upstream;
+         NU5104 (stable depending on prerelease) is informational. -->
+    <NoWarn>$(NoWarn);NU5104</NoWarn>
+
+    <!--
+      We bundle the KamsoraAPM.Contracts assembly inside this NuGet so customers
+      install ONE package and don't see a separate "Contracts" dependency.
+      The MSBuild target below adds all ProjectReference outputs to the
+      lib/net8.0/ folder of the produced .nupkg.
+    -->
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);BundleProjectReferencesInPackage</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="../../assets/kamsora-icon.png" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The bundled Contracts.dll references Google.Protobuf at runtime; we
+         expose it here so consumers receive it transitively when they install
+         KamsoraAPM.Agent. Without this, the app blows up at AddKamsoraApm()
+         with FileNotFoundException for Google.Protobuf. -->
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Polly" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <!--
+      OTel instrumentations are what actually set http.request.method, http.route,
+      url.path, http.response.status_code, etc. on the ASP.NET Core HTTP server activity.
+      Without these, the activity is a bare HttpRequestIn with zero tags.
+    -->
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <!-- Captures Microsoft.Data.SqlClient + System.Data.SqlClient queries (MSSQL).
+         PostgreSQL (Npgsql 6+), MySQL (MySqlConnector), and EF Core emit their
+         own ActivitySources which our listener picks up automatically. -->
+    <PackageReference Include="OpenTelemetry.Instrumentation.SqlClient" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="System.IO.Hashing" />
+    <!-- M9 continuous profiling - talks to the runtime's diagnostic port
+         (in-process self-connect) and parses the resulting nettrace stream. -->
+    <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" />
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- PrivateAssets="all" tells NuGet not to surface Contracts as a public
+         dependency. The custom target below copies its DLL into the package. -->
+    <ProjectReference Include="..\KamsoraAPM.Contracts\KamsoraAPM.Contracts.csproj">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Target Name="BundleProjectReferencesInPackage" DependsOnTargets="BuildOnlySettings;ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths->WithMetadataValue('ReferenceSourceTarget', 'ProjectReference')->WithMetadataValue('Extension', '.dll'))" />
+    </ItemGroup>
+  </Target>
+
+</Project>

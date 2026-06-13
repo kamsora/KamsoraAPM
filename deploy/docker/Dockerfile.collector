@@ -1,0 +1,56 @@
+# KamsoraAPM Collector - production container image.
+#
+# Multi-stage build:
+#   1. sdk image restores + publishes the Collector project (Release, linux-x64)
+#   2. runtime image is the minimal ASP.NET aspnet image with the published bits
+#
+# Build from the repo root:
+#   docker build -f deploy/docker/Dockerfile.collector -t kamsora-apm-collector:dev .
+
+# ---------- Stage 1: build ----------
+FROM mcr.microsoft.com/dotnet/sdk:8.0-jammy AS build
+WORKDIR /src
+
+# Copy only the files needed for restore first, so the package layer is cached
+# across code-only changes.
+COPY Directory.Build.props Directory.Packages.props global.json ./
+COPY src/KamsoraAPM.Contracts/KamsoraAPM.Contracts.csproj   src/KamsoraAPM.Contracts/
+COPY src/KamsoraAPM.Storage/KamsoraAPM.Storage.csproj       src/KamsoraAPM.Storage/
+COPY src/KamsoraAPM.Collector/KamsoraAPM.Collector.csproj   src/KamsoraAPM.Collector/
+
+RUN dotnet restore src/KamsoraAPM.Collector/KamsoraAPM.Collector.csproj
+
+# Now copy the rest and publish.
+COPY src/KamsoraAPM.Contracts/ src/KamsoraAPM.Contracts/
+COPY src/KamsoraAPM.Storage/   src/KamsoraAPM.Storage/
+COPY src/KamsoraAPM.Collector/ src/KamsoraAPM.Collector/
+
+RUN dotnet publish src/KamsoraAPM.Collector/KamsoraAPM.Collector.csproj \
+        -c Release \
+        --no-restore \
+        -p:UseAppHost=false \
+        -o /app
+
+# ---------- Stage 2: runtime ----------
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-jammy AS runtime
+WORKDIR /app
+
+# Kestrel endpoints come from appsettings.json:
+#   5080 = gRPC ingest (HTTP/2 only), 5081 = health/stats (HTTP/1).
+EXPOSE 5080 5081
+
+# The aspnet base image ships neither curl nor wget; the HEALTHCHECK needs one.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app .
+
+# Run as the non-root "app" user the aspnet base image creates.
+USER app
+
+# 5080 is HTTP/2-only (gRPC) - probe the HTTP/1 health endpoint on 5081.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:5081/healthz || exit 1
+
+ENTRYPOINT ["dotnet", "KamsoraAPM.Collector.dll"]

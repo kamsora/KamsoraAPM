@@ -1,0 +1,14 @@
+# Code owners for KamsoraAPM.
+# The last matching pattern takes precedence. Enforcement requires
+# "Require review from Code Owners" to be enabled in branch protection.
+
+# Default: the maintainer owns everything.
+*                                              @ripdamansingh
+
+# Publishing + CI/CD config. Changes here can alter how or where releases
+# are published, so they always require maintainer review.
+/.github/                                      @ripdamansingh
+/.github/workflows/                            @ripdamansingh
+/Directory.Build.props                         @ripdamansingh
+/Directory.Packages.props                      @ripdamansingh
+/src/KamsoraAPM.Agent/KamsoraAPM.Agent.csproj  @ripdamansingh

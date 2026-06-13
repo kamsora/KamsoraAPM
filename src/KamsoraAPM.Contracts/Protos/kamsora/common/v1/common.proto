@@ -1,0 +1,68 @@
+// Copyright 2026 Kamsora Technologies Pvt. Ltd. and KamsoraAPM contributors.
+// Licensed under the Apache License, Version 2.0.
+//
+// Shared primitives used across the KamsoraAPM wire format.
+// Modeled on the OpenTelemetry common proto so we can OTLP-bridge in M2.
+syntax = "proto3";
+
+package kamsora.common.v1;
+
+option csharp_namespace = "KamsoraAPM.Contracts.Common.V1";
+option go_package        = "github.com/kamsora/kamsora-apm/contracts/common/v1;commonv1";
+
+// A single attribute value (string, bool, int, double, bytes, array, kv-list).
+//
+// Field numbers AND scalar encodings are EXACTLY OTLP's AnyValue - int_value
+// is plain int64 (varint), NOT sint64 - so bytes produced by any OpenTelemetry
+// SDK parse losslessly into this type. Do not renumber or change encodings;
+// the standard-OTLP ingest endpoints depend on this wire compatibility.
+// (Fixed in v1.4.0: pre-1.4 used sint64 int_value + different 5/6/7 order,
+// which ZigZag-halved integer attribute values arriving from OTLP SDKs.)
+message AnyValue {
+  oneof value {
+    string  string_value  = 1;
+    bool    bool_value    = 2;
+    int64   int_value     = 3;
+    double  double_value  = 4;
+    ArrayValue        array_value  = 5;
+    KeyValueList      kvlist_value = 6;
+    bytes   bytes_value   = 7;
+  }
+}
+
+message ArrayValue {
+  repeated AnyValue values = 1;
+}
+
+message KeyValueList {
+  repeated KeyValue values = 1;
+}
+
+// Single key/value attribute pair.
+message KeyValue {
+  string   key   = 1;
+  AnyValue value = 2;
+}
+
+// Identifies the entity producing telemetry: service.name, host.name, etc.
+// Mirrors OTLP resource.proto.
+message Resource {
+  repeated KeyValue attributes               = 1;
+  uint32            dropped_attributes_count = 2;
+}
+
+// Identifies the library/tool that produced a particular Span/Metric/LogRecord.
+message InstrumentationScope {
+  string            name                       = 1;
+  string            version                    = 2;
+  repeated KeyValue attributes                 = 3;
+  uint32            dropped_attributes_count   = 4;
+}
+
+// Kamsora-specific tenant context - propagated via gRPC metadata
+// (`x-kamsora-tenant`, `x-kamsora-api-key`). This message exists so
+// internal services can also pass tenant identity in-band when needed.
+message TenantContext {
+  string tenant_id = 1; // UUID
+  string api_key_id = 2; // Public identifier of the credential (not the secret)
+}

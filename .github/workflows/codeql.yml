@@ -1,0 +1,52 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"  # Weekly, Monday 06:00 UTC
+
+jobs:
+  analyze:
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [csharp, javascript]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8 (for csharp build)
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - name: Build (csharp)
+        if: matrix.language == 'csharp'
+        # CodeQL needs the assemblies to walk, not a warning-clean build.
+        # TreatWarningsAsErrors is still enforced solution-wide in
+        # Directory.Build.props so the CI workflow catches them; here we
+        # explicitly relax it so a stray analyzer hit doesn't block the
+        # security scan from running at all.
+        run: |
+          dotnet restore KamsoraAPM.sln
+          dotnet build KamsoraAPM.sln --configuration Release --no-restore /p:TreatWarningsAsErrors=false
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>KamsoraAPM.HostMonitor</RootNamespace>
+    <AssemblyName>KamsoraAPM.HostMonitor</AssemblyName>
+    <Description>KamsoraAPM host-machine telemetry daemon. Runs as systemd unit on Linux and as a Windows Service.</Description>
+    <IsPackable>false</IsPackable>
+    <UserSecretsId>kamsora-apm-host-monitor</UserSecretsId>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Polly" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Condition="'$(OS)' == 'Windows_NT'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KamsoraAPM.Contracts\KamsoraAPM.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

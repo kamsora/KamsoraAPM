@@ -1,0 +1,41 @@
+// Copyright 2026 Kamsora Technologies Pvt. Ltd. and KamsoraAPM contributors.
+// Licensed under the Apache License, Version 2.0.
+//
+// Standard OTLP/gRPC trace ingestion surface. The package + service + method
+// names below produce the exact gRPC route every OpenTelemetry SDK calls:
+//
+//   /opentelemetry.proto.collector.trace.v1.TraceService/Export
+//
+// The request/response messages reference KamsoraAPM's own kamsora.trace.v1
+// types - they are wire-compatible with the upstream OTLP messages
+// (identical field numbers and scalar types), so any OTLP exporter's bytes
+// parse cleanly. Fields KamsoraAPM doesn't model (e.g. span flags) are
+// skipped as unknown fields per standard protobuf semantics.
+//
+// Authentication: same gRPC metadata as the native Kamsora services -
+//   x-kamsora-tenant, x-kamsora-api-key
+// (set via OTEL_EXPORTER_OTLP_HEADERS in any OTel SDK).
+syntax = "proto3";
+
+package opentelemetry.proto.collector.trace.v1;
+
+option csharp_namespace = "KamsoraAPM.Contracts.Otlp.Trace.V1";
+
+import "kamsora/trace/v1/trace.proto";
+
+service TraceService {
+  rpc Export(ExportTraceServiceRequest) returns (ExportTraceServiceResponse);
+}
+
+message ExportTraceServiceRequest {
+  repeated kamsora.trace.v1.ResourceSpans resource_spans = 1;
+}
+
+message ExportTraceServiceResponse {
+  ExportTracePartialSuccess partial_success = 1;
+}
+
+message ExportTracePartialSuccess {
+  int64  rejected_spans = 1;
+  string error_message  = 2;
+}

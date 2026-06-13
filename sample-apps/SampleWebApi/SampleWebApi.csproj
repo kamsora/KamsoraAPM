@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>SampleWebApi</RootNamespace>
+    <AssemblyName>SampleWebApi</AssemblyName>
+    <Description>Sample .NET 8 Web API instrumented with the KamsoraAPM Agent. End-to-end demo for M1.</Description>
+    <IsPackable>false</IsPackable>
+    <UserSecretsId>kamsora-apm-sample-web-api</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KamsoraAPM.Agent\KamsoraAPM.Agent.csproj" />
+  </ItemGroup>
+
+</Project>
