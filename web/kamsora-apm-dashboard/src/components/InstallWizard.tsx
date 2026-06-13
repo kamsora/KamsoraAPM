@@ -85,21 +85,20 @@ function AgentSnippet({ tenantUuid, apiKey, collectorEndpoint }: {
   const programCs = `// Program.cs in your ASP.NET Core app
 builder.Services.AddKamsoraApm(o =>
 {
-    o.CollectorEndpoint = "${collectorEndpoint}";
-    o.TenantId          = "${tenantUuid}";
-    o.ApiKey            = "${apiKey}";
-    o.ServiceName       = "<your-service-name>";
+    o.Endpoint    = new Uri("${collectorEndpoint}");
+    o.TenantId    = "${tenantUuid}";
+    o.ApiKey      = "${apiKey}";
+    o.ServiceName = "<your-service-name>";
 });`;
 
-  const appsettings = `// Or via appsettings.json - same shape:
+  const appsettings = `// Or keep them in appsettings.json and bind the section:
+//   builder.Services.AddKamsoraApm(builder.Configuration);
 {
   "KamsoraApm": {
-    "Agent": {
-      "CollectorEndpoint": "${collectorEndpoint}",
-      "TenantId":          "${tenantUuid}",
-      "ApiKey":            "${apiKey}",
-      "ServiceName":       "<your-service-name>"
-    }
+    "Endpoint":    "${collectorEndpoint}",
+    "TenantId":    "${tenantUuid}",
+    "ApiKey":      "${apiKey}",
+    "ServiceName": "<your-service-name>"
   }
 }`;
 
