@@ -77,12 +77,29 @@ keys, alert rules).
 ```bash
 git clone https://github.com/kamsora/KamsoraAPM.git
 cd KamsoraAPM
+```
 
-# 1. Configure secrets (compose refuses to start without them)
-cp deploy/docker/.env.example deploy/docker/.env
-#    edit: passwords, JWT key (openssl rand -base64 48), admin email/password
+**1. Generate secrets.** The stack runs in the Production environment and
+refuses to start with the repository's default secrets, so generate real ones
+first. This script writes `deploy/docker/.env` with cryptographically random
+database passwords + JWT key and prints the first-run admin login:
 
-# 2. Bring up the stack - databases, Collector, API, dashboard
+```bash
+# Linux / macOS
+./scripts/init-env.sh
+```
+```powershell
+# Windows (PowerShell)
+powershell -ExecutionPolicy Bypass -File scripts/init-env.ps1
+```
+
+> Prefer to set them by hand? Copy `deploy/docker/.env.example` to
+> `deploy/docker/.env` (`copy` on Windows CMD, `cp` on Linux/macOS) and replace
+> **every** value - the apps reject any leftover default in Production.
+
+**2. Bring up the stack** - databases, Collector, API, and dashboard:
+
+```bash
 docker compose -f deploy/docker/docker-compose.yml --env-file deploy/docker/.env --profile apps up -d --build
 ```
 
