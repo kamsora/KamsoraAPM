@@ -20,7 +20,10 @@
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.File" />
-    <PackageReference Include="System.Diagnostics.PerformanceCounter" Condition="'$(OS)' == 'Windows_NT'" />
+    <!-- Unconditional: provides the PerformanceCounter type at compile time on all
+         platforms (Linux CI included). The Windows samplers that use it are only
+         instantiated on Windows at runtime, so the Linux stub is never invoked. -->
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" />
   </ItemGroup>
 
   <ItemGroup>
