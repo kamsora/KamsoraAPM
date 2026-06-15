@@ -14,16 +14,11 @@
 
 </div>
 
-<!--
-  LAUNCH TODO - add a dashboard screenshot here before sharing widely; for a
-  visual product this is the single highest-leverage thing on the page.
-  Capture a clean Overview (or Traces) page, save it to
-  assets/screenshots/overview.png, then delete this comment and un-comment
-  the line below:
-<p align="center"><img src="assets/screenshots/overview.png" alt="KamsoraAPM dashboard" width="900" /></p>
--->
+<p align="center">
+  <img src="assets/screenshots/overview-01.png" alt="KamsoraAPM dashboard - Overview" width="900" />
+</p>
 
-<p align="center"><a href="#quick-start-docker"><b>Quick start</b></a> &middot; <a href="#architecture">Architecture</a> &middot; <a href="docs/ingest/otlp.md">Send from any language</a> &middot; <a href="docs/adr/">Design decisions</a></p>
+<p align="center"><a href="#quick-start-docker"><b>Quick start</b></a> &middot; <a href="#screenshots">Screenshots</a> &middot; <a href="#architecture">Architecture</a> &middot; <a href="docs/ingest/otlp.md">Send from any language</a> &middot; <a href="docs/adr/">Design decisions</a></p>
 
 KamsoraAPM unifies the signals you actually debug with:
 
@@ -49,6 +44,49 @@ KamsoraAPM unifies the signals you actually debug with:
 **Not just .NET:** the Collector also exposes the standard OTLP/gRPC
 services, so any OpenTelemetry SDK - Java, Go, Python, Node, Rust - can send
 traces, logs, and metrics to KamsoraAPM. See [docs/ingest/otlp.md](docs/ingest/otlp.md).
+
+---
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <b>Distributed tracing</b><br/>
+      <sub>Every request as a span tree, with a full trace-detail drill-down.</sub><br/><br/>
+      <img src="assets/screenshots/traces-02.png" alt="Distributed tracing" width="100%" />
+    </td>
+    <td width="50%" valign="top">
+      <b>Live service map</b><br/>
+      <sub>Dependency graph drawn automatically from trace data.</sub><br/><br/>
+      <img src="assets/screenshots/service-map.png" alt="Service map" width="100%" />
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>Metrics</b><br/>
+      <sub>Runtime and custom meters, per-tenant cardinality-safe.</sub><br/><br/>
+      <img src="assets/screenshots/metrics.png" alt="Metrics" width="100%" />
+    </td>
+    <td width="50%" valign="top">
+      <b>Host monitoring</b><br/>
+      <sub>CPU, memory, disk, network and top processes per machine.</sub><br/><br/>
+      <img src="assets/screenshots/host-01.png" alt="Host monitoring" width="100%" />
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>Errors</b><br/>
+      <sub>Failing routes ranked by volume, with full error drill-down.</sub><br/><br/>
+      <img src="assets/screenshots/errors.png" alt="Errors" width="100%" />
+    </td>
+    <td width="50%" valign="top">
+      <b>Consumer analytics</b><br/>
+      <sub>See which API consumer drives which traffic and failures.</sub><br/><br/>
+      <img src="assets/screenshots/consumers.png" alt="Consumer analytics" width="100%" />
+    </td>
+  </tr>
+</table>
 
 ---
 
