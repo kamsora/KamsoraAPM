@@ -17,7 +17,7 @@ namespace KamsoraAPM.Collector.Infrastructure;
 ///
 /// Partition layout convention: every telemetry table partitions by
 /// <c>(tenant_id, toYYYYMMDD(...))</c> or <c>(tenant_id, toYYYYMM(...))</c>,
-/// so a partition is droppable purely from its name â€” no row scans.
+/// so a partition is droppable purely from its name - no row scans.
 /// Runs daily; first sweep ~5 minutes after startup.
 /// </summary>
 internal sealed class RetentionSweeperHostedService : BackgroundService
@@ -101,8 +101,8 @@ internal sealed class RetentionSweeperHostedService : BackgroundService
             if (periodEndUtc >= cutoff) continue;
 
             await using var drop = conn.CreateCommand();
-            // Partition literal comes from system.parts verbatim â€” already in
-            // tuple syntax â€” so it is interpolated, not parameterised (DDL
+            // Partition literal comes from system.parts verbatim - already in
+            // tuple syntax - so it is interpolated, not parameterised (DDL
             // does not accept parameters). Values originate from ClickHouse
             // itself, not from user input.
             drop.CommandText = $"ALTER TABLE kamsora_apm.{table} DROP PARTITION {partition}";
@@ -114,7 +114,7 @@ internal sealed class RetentionSweeperHostedService : BackgroundService
                 table, partition, tenantId, retentionDays);
         }
 
-        _logger.LogInformation("KamsoraAPM Collector: retention sweep complete â€” {Dropped} partition(s) dropped.", dropped);
+        _logger.LogInformation("KamsoraAPM Collector: retention sweep complete - {Dropped} partition(s) dropped.", dropped);
     }
 
     private async Task<Dictionary<Guid, int>> LoadTenantRetentionAsync(CancellationToken ct)
@@ -136,7 +136,7 @@ internal sealed class RetentionSweeperHostedService : BackgroundService
     }
 
     /// <summary>
-    /// Parse "('a1b2c3d4-â€¦', 20260601)" or "('a1b2c3d4-â€¦', 202606)" into the
+    /// Parse "('a1b2c3d4-...', 20260601)" or "('a1b2c3d4-...', 202606)" into the
     /// tenant id and the END of the period the partition covers (a daily
     /// partition ends that day; a monthly partition ends the month's last day).
     /// </summary>

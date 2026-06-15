@@ -94,10 +94,10 @@ export default function HostsPage() {
                   >
                     <td>
                       <div>{h.hostName || h.hostId}</div>
-                      <div className="mono faint" style={{ fontSize: 11 }}>{h.hostId.slice(0, 12)}â€¦</div>
+                      <div className="mono faint" style={{ fontSize: 11 }}>{h.hostId.slice(0, 12)}...</div>
                     </td>
-                    <td>{h.osType || 'â€”'} <span className="faint">{h.osVersion}</span></td>
-                    <td style={{ textAlign: 'right' }}>{h.logicalCores || 'â€”'}</td>
+                    <td>{h.osType || '-'} <span className="faint">{h.osVersion}</span></td>
+                    <td style={{ textAlign: 'right' }}>{h.logicalCores || '-'}</td>
                     <td style={{ textAlign: 'right' }}>
                       <span className={`badge ${cpuBadge}`}>{(h.cpuUtilization * 100).toFixed(1)}%</span>
                     </td>
@@ -120,7 +120,7 @@ export default function HostsPage() {
       {activeHost && (
         <>
           <div className="card" style={{ marginBottom: 24 }}>
-            <h3 className="card-title">CPU utilization â€” {activeHost.hostName || activeHost.hostId}</h3>
+            <h3 className="card-title">CPU utilization - {activeHost.hostName || activeHost.hostId}</h3>
             {util.isLoading ? <Loading /> :
              util.error    ? <ErrorBlock error={util.error} /> :
              !util.data || util.data.length === 0 ? <Empty /> :
@@ -128,7 +128,7 @@ export default function HostsPage() {
           </div>
 
           <div className="card" style={{ marginBottom: 24 }}>
-            <h3 className="card-title">Memory utilization â€” {activeHost.hostName || activeHost.hostId}</h3>
+            <h3 className="card-title">Memory utilization - {activeHost.hostName || activeHost.hostId}</h3>
             {util.isLoading ? <Loading /> :
              util.error    ? <ErrorBlock error={util.error} /> :
              !util.data || util.data.length === 0 ? <Empty /> :
@@ -136,7 +136,7 @@ export default function HostsPage() {
           </div>
 
           <div className="card" style={{ marginBottom: 24 }}>
-            <h3 className="card-title">Disk I/O throughput â€” {activeHost.hostName || activeHost.hostId}</h3>
+            <h3 className="card-title">Disk I/O throughput - {activeHost.hostName || activeHost.hostId}</h3>
             {disks.isLoading ? <Loading /> :
              disks.error    ? <ErrorBlock error={disks.error} /> :
              !disks.data || disks.data.length === 0 ? <Empty label="No disk samples in this window." /> :
@@ -145,7 +145,7 @@ export default function HostsPage() {
           </div>
 
           <div className="card" style={{ marginBottom: 24 }}>
-            <h3 className="card-title">Network throughput â€” {activeHost.hostName || activeHost.hostId}</h3>
+            <h3 className="card-title">Network throughput - {activeHost.hostName || activeHost.hostId}</h3>
             {networks.isLoading ? <Loading /> :
              networks.error    ? <ErrorBlock error={networks.error} /> :
              !networks.data || networks.data.length === 0 ? <Empty label="No network samples in this window." /> :
@@ -154,7 +154,7 @@ export default function HostsPage() {
 
           <div className="card" style={{ padding: 0 }}>
             <h3 className="card-title" style={{ padding: '12px 16px 0' }}>
-              Top processes â€” {activeHost.hostName || activeHost.hostId}
+              Top processes - {activeHost.hostName || activeHost.hostId}
               <span className="muted" style={{ marginLeft: 8, fontSize: 12, fontWeight: 'normal' }}>
                 live (15 s refresh)
               </span>
@@ -314,7 +314,7 @@ function ProcessTable({ rows }: { rows: HostProcessSummary[] }) {
                 <div>{r.command}</div>
                 {r.runtimeVersion && <div className="faint" style={{ fontSize: 11 }}>.NET {r.runtimeVersion}</div>}
               </td>
-              <td className="faint">{r.serviceName || 'â€”'}</td>
+              <td className="faint">{r.serviceName || '-'}</td>
               <td style={{ textAlign: 'right' }}>
                 <span className={`badge ${badge}`}>{(r.cpuUtilization * 100).toFixed(1)}%</span>
               </td>
@@ -331,11 +331,11 @@ function ProcessTable({ rows }: { rows: HostProcessSummary[] }) {
 
 function shortenIface(name: string): string {
   // Windows NIC names can be very long (vendor + adapter index). Trim aggressively.
-  return name.length > 28 ? `${name.slice(0, 26)}â€¦` : name;
+  return name.length > 28 ? `${name.slice(0, 26)}...` : name;
 }
 
 function formatRate(bytesPerSec: number): string {
-  if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return 'â€”';
+  if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return '-';
   return `${formatBytes(bytesPerSec)}/s`;
 }
 
@@ -393,14 +393,14 @@ function MemoryChart({ points }: { points: HostUtilizationPoint[] }) {
 
 function pickBucket(from: Date, to: Date): number {
   const spanSec = Math.max(60, (to.getTime() - from.getTime()) / 1000);
-  if (spanSec <=    60 * 60)        return  30;   // <= 1 h  â†’ 30 s buckets
-  if (spanSec <=  6  * 60 * 60)     return  60;   // <= 6 h  â†’ 1 m
-  if (spanSec <= 24  * 60 * 60)     return 300;   // <= 24 h â†’ 5 m
-  return 900;                                     // > 1 d   â†’ 15 m
+  if (spanSec <=    60 * 60)        return  30;   // <= 1 h  -> 30 s buckets
+  if (spanSec <=  6  * 60 * 60)     return  60;   // <= 6 h  -> 1 m
+  if (spanSec <= 24  * 60 * 60)     return 300;   // <= 24 h -> 5 m
+  return 900;                                     // > 1 d   -> 15 m
 }
 
 function formatBytes(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return 'â€”';
+  if (!Number.isFinite(n) || n <= 0) return '-';
   const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
   let i = 0;
   let v = n;

@@ -1,15 +1,15 @@
-﻿# KamsoraAPM â€” Production Deployment Runbook
+# KamsoraAPM - Production Deployment Runbook
 
 A focused, step-by-step guide to deploy the KamsoraAPM server-side stack
 on a **single Linux VM** using your **own wildcard TLS cert** and a
 **single subdomain** like `apm.example.com`.
 
 This document is a runbook, not a tutorial. Run each numbered step in
-order. After every step there's a **verify** check â€” if it passes, move
-on; if it fails, jump to Â§11 Troubleshooting.
+order. After every step there's a **verify** check - if it passes, move
+on; if it fails, jump to section 11 Troubleshooting.
 
 For background on architecture see [README.md](README.md). For the
-Let's Encrypt variant see README Â§2.
+Let's Encrypt variant see README section 2.
 
 ---
 
@@ -38,27 +38,26 @@ A single host runs seven containers fronted by Caddy with your wildcard cert:
 
 ```
 Internet
-   â”‚
-   â-¼
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚  Server VM (Ubuntu 22.04 / Debian 12)                            â”‚
-â”‚                                                                  â”‚
-â”‚   :443 â”€â”€ Caddy â”€â”€ /          â”€â”€â-º dashboard  (nginx + SPA)       â”‚
-â”‚            â”‚       /api/*     â”€â”€â-º dashboard-api (.NET REST)      â”‚
-â”‚            â”‚                                                     â”‚
-â”‚   :5080 â”€â”€ Caddy â”€â”€â-º collector (gRPC ingest, .NET)               â”‚
-â”‚                                                                  â”‚
-â”‚            â-¼                                                     â”‚
-â”‚         postgres â-„â”€â”€ dashboard-api & collector (auth + audit)    â”‚
-â”‚         clickhouse â-„ dashboard-api & collector (time-series)     â”‚
-â”‚                                                                  â”‚
-â”‚         backup (sidecar) â”€â”€ daily pg_dump + ClickHouse dump      â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-   â-²
-   â”‚
-   â”œâ”€â”€ browser users      â†’ https://apm.example.com/
-   â”œâ”€â”€ instrumented apps  â†’ https://apm.example.com:5080  (.NET Agent)
-   â””â”€â”€ monitored hosts    â†’ https://apm.example.com:5080  (HostMonitor)
+   |
+   v
++-------------------------------------------------------------------+
+|   Server VM (Ubuntu 22.04 / Debian 12)                            |
+|                                                                   |
+|    :443  -- Caddy -- /          --> dashboard      (nginx + SPA)  |
+|             |        /api/*      --> dashboard-api (.NET REST)    |
+|             |                                                     |
+|    :5080 -- Caddy --------------> collector (gRPC ingest, .NET)   |
+|                                                                   |
+|          postgres    <-- dashboard-api & collector (auth + audit) |
+|          clickhouse  <-- dashboard-api & collector (time-series)  |
+|                                                                   |
+|          backup (sidecar) -- daily pg_dump + ClickHouse dump      |
++-------------------------------------------------------------------+
+   |
+   v
+   +-- browser users      --> https://apm.example.com/
+   +-- instrumented apps  --> https://apm.example.com:5080  (.NET Agent)
+   +-- monitored hosts    --> https://apm.example.com:5080  (HostMonitor)
 ```
 
 Everything inside the box is on a private docker network. Only Caddy
@@ -72,15 +71,15 @@ PostgreSQL, ClickHouse, or any of the .NET containers.
 | # | Item | Detail |
 |---|---|---|
 | 1.1 | **Linux VM** | Ubuntu 22.04 LTS or Debian 12. Minimum **4 vCPU, 8 GB RAM, 50 GB SSD**. Comfortably handles ~50 hosts + a few hundred apps. |
-| 1.2 | **Public IPv4** with inbound ports **443, 5080** open in cloud security group + OS firewall. Port 80 is optional (only needed if you keep the HTTPâ†’HTTPS redirect block in the Caddyfile). |
+| 1.2 | **Public IPv4** with inbound ports **443, 5080** open in cloud security group + OS firewall. Port 80 is optional (only needed if you keep the HTTP->HTTPS redirect block in the Caddyfile). |
 | 1.3 | **Domain** you control: full subdomain like `apm.example.com`. |
 | 1.4 | **Wildcard TLS cert** (`.pfx` file) whose subject covers your subdomain. Wildcard like `*.example.com` works; an exact-domain cert for `apm.example.com` also works. |
 | 1.5 | **PFX password** (the one your issuer set when generating the file). |
-| 1.6 | **DNS A-record** `apm.example.com â†’ <VM public IP>`, already propagated. Verify with `dig +short apm.example.com` â€” must return your VM IP. |
+| 1.6 | **DNS A-record** `apm.example.com -> <VM public IP>`, already propagated. Verify with `dig +short apm.example.com` - must return your VM IP. |
 | 1.7 | **SSH access** to the VM with sudo. |
 | 1.8 | **Local machine** with `openssl` (for `.pfx` conversion) and `scp` (or any way to upload files). |
 
-If any of 1.1â€“1.7 are not yet true, fix them **before** continuing. The
+If any of 1.1-1.7 are not yet true, fix them **before** continuing. The
 biggest source of failed deploys is missing DNS or blocked ports.
 
 ---
@@ -117,7 +116,7 @@ If your VM has `ufw` enabled:
 sudo ufw allow 22/tcp        # don't lock yourself out
 sudo ufw allow 443/tcp       # dashboard HTTPS
 sudo ufw allow 5080/tcp      # gRPC ingest
-# Optional â€” only if you want HTTPâ†’HTTPS redirect on port 80:
+# Optional - only if you want HTTP->HTTPS redirect on port 80:
 sudo ufw allow 80/tcp
 sudo ufw enable
 sudo ufw status
@@ -131,7 +130,7 @@ sudo firewall-cmd --permanent --add-port=5080/tcp
 sudo firewall-cmd --reload
 ```
 
-Cloud security group (AWS / DigitalOcean / Hetzner / Azure) â€” open the
+Cloud security group (AWS / DigitalOcean / Hetzner / Azure) - open the
 same ports there too. The cloud firewall is in addition to the OS one.
 
 **Verify from another machine:**
@@ -154,7 +153,7 @@ timedatectl status     # System clock synchronized: yes
 
 ## 3. Convert your `.pfx` to PEM
 
-You can run this on **your local machine** (recommended â€” keeps the `.pfx`
+You can run this on **your local machine** (recommended - keeps the `.pfx`
 file off the server) or on the VM itself.
 
 ### 3.1. On your local machine (Windows with Git Bash, macOS, or Linux)
@@ -238,7 +237,7 @@ Back on the **VM**:
 ```bash
 cd ~/KamsoraAPM/deploy/production
 
-# Tighten permissions â€” key should be unreadable to non-owners.
+# Tighten permissions - key should be unreadable to non-owners.
 chmod 600 certs/key.pem
 chmod 644 certs/cert.pem
 ls -la certs/
@@ -247,7 +246,7 @@ ls -la certs/
 **Verify:**
 
 ```bash
-# Re-run the cert verification from Â§3.2 to make sure the upload didn't corrupt anything.
+# Re-run the cert verification from section 3.2 to make sure the upload didn't corrupt anything.
 openssl x509 -in certs/cert.pem -noout -subject -issuer -dates
 ```
 
@@ -277,7 +276,7 @@ Set these three values:
 
 ```dotenv
 KAMSORA_DOMAIN=apm.example.com           # your subdomain
-KAMSORA_ACME_EMAIL=                       # leave EMPTY â€” not used in BYO mode
+KAMSORA_ACME_EMAIL=                       # leave EMPTY - not used in BYO mode
 SEED_ADMIN_EMAIL=admin@example.com        # your first dashboard login email
 ```
 
@@ -296,7 +295,7 @@ Output will end with a banner like:
    Dashboard URL  : https://apm.example.com/
    Admin email    : admin@example.com
    Admin password : kjsdhf83hf283hf
-   â¬† COPY THIS NOW â€” it will NOT be shown again.
+   ^ COPY THIS NOW - it will NOT be shown again.
 ========================================================================
 ```
 
@@ -321,15 +320,15 @@ What happens:
 
 | Phase | ~Duration | What's happening |
 |---|---|---|
-| Image builds | 2â€“4 min | Multi-stage builds of Collector, Dashboard.Api, Dashboard SPA, Backup sidecar |
-| Pull base images | 30â€“60 s | postgres:16-alpine, clickhouse-server:24.10, caddy:2.8, nginx |
-| Postgres init | 10â€“20 s | First-boot runs all `deploy/sql/postgres/*.sql` migrations |
-| ClickHouse init | 10â€“20 s | First-boot runs all `deploy/sql/clickhouse/*.sql` migrations |
-| Service start | 5â€“10 s | Collector, Dashboard.Api, Caddy, Dashboard, Backup |
+| Image builds | 2-4 min | Multi-stage builds of Collector, Dashboard.Api, Dashboard SPA, Backup sidecar |
+| Pull base images | 30-60 s | postgres:16-alpine, clickhouse-server:24.10, caddy:2.8, nginx |
+| Postgres init | 10-20 s | First-boot runs all `deploy/sql/postgres/*.sql` migrations |
+| ClickHouse init | 10-20 s | First-boot runs all `deploy/sql/clickhouse/*.sql` migrations |
+| Service start | 5-10 s | Collector, Dashboard.Api, Caddy, Dashboard, Backup |
 | Caddy cert load | < 1 s | Reads `certs/cert.pem` + `certs/key.pem` |
-| Tenant seeding | 1â€“2 s | Dashboard.Api creates first tenant + admin user + initial API key |
+| Tenant seeding | 1-2 s | Dashboard.Api creates first tenant + admin user + initial API key |
 
-**Total ~3â€“4 minutes** for the very first deploy. Subsequent restarts are
+**Total ~3-4 minutes** for the very first deploy. Subsequent restarts are
 under 30 seconds because images are cached.
 
 Watch progress:
@@ -346,7 +345,7 @@ You're "done" when you see, in any order:
 - `postgres`: `database system is ready to accept connections`
 - `clickhouse`: `Application: Ready for connections`
 - `dashboard-api`: `Now listening on: http://[::]:5090` + `Hosting environment: Production`
-- `dashboard-api`: a log line containing **`api_key : kapm_...`** (your seeded ingest key â€” **save this**)
+- `dashboard-api`: a log line containing **`api_key : kapm_...`** (your seeded ingest key - **save this**)
 - `collector`: `Now listening on: http://[::]:5080`
 - `caddy`: `server running` (no certificate-loading errors)
 - `backup`: `Schedule installed: 0 3 * * *`
@@ -379,7 +378,7 @@ curl -fsSv https://apm.example.com/healthz
 ```
 
 Expected: HTTP 200 with body `{"status":"ok","component":"kamsora-apm-dashboard-api"}`.
-The verbose flag also prints the cert chain â€” confirm the issuer matches
+The verbose flag also prints the cert chain - confirm the issuer matches
 your wildcard cert (not Let's Encrypt).
 
 From a browser on your laptop, open `https://apm.example.com/`:
@@ -409,7 +408,7 @@ Verification: OK
 That confirms port 5080 is reachable, presenting your wildcard cert, and
 the TLS handshake completes successfully.
 
-If Â§8.1, 8.2, and 8.3 all pass â€” your stack is live.
+If section 8.1, 8.2, and 8.3 all pass - your stack is live.
 
 ---
 
@@ -419,9 +418,9 @@ If Â§8.1, 8.2, and 8.3 all pass â€” your stack is live.
 
 1. Open `https://apm.example.com/login` in a browser.
 2. Email = your `SEED_ADMIN_EMAIL` (e.g. `admin@example.com`).
-3. Password = the one printed by `bootstrap.sh` in Â§6.
+3. Password = the one printed by `bootstrap.sh` in section 6.
 
-You land on the **Overview** dashboard (empty â€” no telemetry yet).
+You land on the **Overview** dashboard (empty - no telemetry yet).
 
 ### 9.2. Change the admin password (highly recommended)
 
@@ -454,13 +453,13 @@ Log out and back in with the new password to confirm.
 
 ### 9.3. Mint your first ingest API key
 
-In the dashboard sidebar click **API Keys â†’ + Mint new key**.
+In the dashboard sidebar click **API Keys -> + Mint new key**.
 
 Fill in:
 - Name: `prod-default` (or whatever label you want)
 - Scopes: `ingest` (default)
 
-Click **Mint key**. A modal pops with the cleartext key â€” **copy it now**,
+Click **Mint key**. A modal pops with the cleartext key - **copy it now**,
 it won't be shown again. The modal also has an **Install snippets** tab
 strip with HostMonitor and Agent install code pre-filled with:
 
@@ -468,7 +467,7 @@ strip with HostMonitor and Agent install code pre-filled with:
 - `TenantId`: your auto-seeded tenant UUID
 - `ApiKey`: the cleartext you just minted
 
-Copy those snippets â€” they go into your agents' config.
+Copy those snippets - they go into your agents' config.
 
 ---
 
@@ -557,8 +556,8 @@ page within seconds.
 |---|---|
 | Caddy logs: `loading certificate: open /certs/cert.pem: no such file or directory` | The `certs/` folder is missing or in the wrong place. Must be at `deploy/production/certs/` relative to the compose file. |
 | Caddy logs: `tls: private key does not match public key` | `cert.pem` and `key.pem` came from different `.pfx` files. Re-run `convert-pfx.sh` and replace both. |
-| Browser: `NET::ERR_CERT_AUTHORITY_INVALID` | Cert chain is missing intermediates. Re-run the `.pfx` â†’ PEM step but include the chain: `openssl pkcs12 -in your.pfx -out cert.pem -nokeys` (without `-clcerts` â€” exports the full chain). |
-| Browser: `NET::ERR_CERT_COMMON_NAME_INVALID` | Cert subject doesn't match `KAMSORA_DOMAIN`. Check Â§3.2 â€” `subject=` must be `*.example.com` (or matching). Either rename DNS to match the cert or get a new cert. |
+| Browser: `NET::ERR_CERT_AUTHORITY_INVALID` | Cert chain is missing intermediates. Re-run the `.pfx` -> PEM step but include the chain: `openssl pkcs12 -in your.pfx -out cert.pem -nokeys` (without `-clcerts` - exports the full chain). |
+| Browser: `NET::ERR_CERT_COMMON_NAME_INVALID` | Cert subject doesn't match `KAMSORA_DOMAIN`. Check section 3.2 - `subject=` must be `*.example.com` (or matching). Either rename DNS to match the cert or get a new cert. |
 | Browser: `NET::ERR_CERT_DATE_INVALID` | Cert expired or system clock wrong. Check `openssl x509 -in certs/cert.pem -noout -dates` and `date -u`. |
 | Caddy fails to start, complains about port 80 | You left the `:80` redirect block in `Caddyfile.byo-cert` but port 80 is blocked. Either open port 80 in the firewall or comment out the `:80 { redir ... }` block in the Caddyfile. |
 
@@ -566,10 +565,10 @@ page within seconds.
 
 | Symptom | Fix |
 |---|---|
-| `dashboard-api` keeps restarting, logs say `relation "mastertenants" does not exist` | Postgres init scripts didn't run (volume was already populated from a previous attempt). Fix: `docker compose down -v` (wipes data) then redeploy. Use only on a fresh attempt â€” wipes everything. |
-| `Code: 60. DB::Exception: Table kamsora_apm.spans doesn't exist` | ClickHouse init didn't run. Same fix as above â€” `docker compose down -v` then redeploy. |
+| `dashboard-api` keeps restarting, logs say `relation "mastertenants" does not exist` | Postgres init scripts didn't run (volume was already populated from a previous attempt). Fix: `docker compose down -v` (wipes data) then redeploy. Use only on a fresh attempt - wipes everything. |
+| `Code: 60. DB::Exception: Table kamsora_apm.spans doesn't exist` | ClickHouse init didn't run. Same fix as above - `docker compose down -v` then redeploy. |
 | `dashboard-api`: `password authentication failed for user "kamsora"` | `POSTGRES_PASSWORD` in `.env.production` doesn't match what Postgres was initialised with (init only runs once). Either change `.env.production` back to the original generated value, or wipe + redeploy. |
-| Caddy 502 on `/api/*` | `dashboard-api` container down. `docker compose logs dashboard-api` â€” most common cause is the DB password mismatch above. |
+| Caddy 502 on `/api/*` | `dashboard-api` container down. `docker compose logs dashboard-api` - most common cause is the DB password mismatch above. |
 
 ### Runtime / agent errors
 
@@ -577,8 +576,8 @@ page within seconds.
 |---|---|
 | Agent logs: `Status(StatusCode="Unavailable", Detail="connection refused")` | Port 5080 not reachable. From the agent host run `nc -zv apm.example.com 5080`. Fix the firewall hop that's blocking. |
 | Agent logs: `Status(StatusCode="Unauthenticated", Detail="Invalid tenant or API key")` | Key revoked, tenant wrong, or you're using a key from a different deploy. Re-mint from the dashboard. |
-| Agent logs: `tls: failed to verify certificate: x509: certificate signed by unknown authority` | Your cert's CA isn't in the agent machine's trust store. For corporate-CA certs, install the CA bundle on the agent machine. For public CAs (DigiCert / GoDaddy) this should never happen â€” likely the chain is missing (see Caddy section above). |
-| Dashboard "No hosts in this time range" but you installed HostMonitor minutes ago | First batch takes 60 s (6 snapshots Ã- 10 s). On the host: `systemctl status kamsora-host-monitor` / Event Viewer for KamsoraAPM.HostMonitor. Look for `gRPC` errors in those logs. |
+| Agent logs: `tls: failed to verify certificate: x509: certificate signed by unknown authority` | Your cert's CA isn't in the agent machine's trust store. For corporate-CA certs, install the CA bundle on the agent machine. For public CAs (DigiCert / GoDaddy) this should never happen - likely the chain is missing (see Caddy section above). |
+| Dashboard "No hosts in this time range" but you installed HostMonitor minutes ago | First batch takes 60 s (6 snapshots x 10 s). On the host: `systemctl status kamsora-host-monitor` / Event Viewer for KamsoraAPM.HostMonitor. Look for `gRPC` errors in those logs. |
 | 500 errors on dashboard `/api/v1/hosts/.../disks` etc. | Ran an older Dashboard.Api version. `docker compose -f ... build --pull && docker compose -f ... up -d` to refresh. |
 
 ### Disk filling fast
@@ -587,7 +586,7 @@ page within seconds.
 |---|---|
 | Backups not pruning | Check `BACKUP_RETENTION_DAYS` in `.env.production` (default 7). Manually clean older folders in the `kamsora-apm-backups` volume. |
 | ClickHouse spans table growing unbounded | Per-tenant `data_retention_days` defaults to 14. Check + lower if needed: `docker exec -it kamsora-apm-postgres-prod psql -U kamsora -d kamsora_apm -c "SELECT tenant_slug, data_retention_days FROM mastertenants;"` Reduce via `UPDATE mastertenants SET data_retention_days = 7 WHERE ...` and the ClickHouse TTL eventually catches up. |
-| `host_processes` table growing fast (top 50 procs Ã- 10 s) | Per design â€” `host_processes` already has a shorter `TTL toDateTime(timestamp) + INTERVAL 7 DAY` set in the schema. If it's still too much, drop `TopProcesses` in HostMonitor's `appsettings.json` from 50 â†’ 20. |
+| `host_processes` table growing fast (top 50 procs x 10 s) | Per design - `host_processes` already has a shorter `TTL toDateTime(timestamp) + INTERVAL 7 DAY` set in the schema. If it's still too much, drop `TopProcesses` in HostMonitor's `appsettings.json` from 50 -> 20. |
 
 ### "I just want to start over"
 
@@ -603,7 +602,7 @@ docker compose --env-file .env.production \
 rm -rf certs   # if you want to re-upload too
 ```
 
-Then start again from Â§3.
+Then start again from section 3.
 
 ---
 
@@ -694,7 +693,7 @@ docker volume. To mirror off-box nightly:
 # Find the volume path on the host:
 BACKUP_PATH=$(docker volume inspect kamsora-apm-backups --format '{{.Mountpoint}}')
 
-# Add to root's crontab â€” rsync to another machine each night at 04:00:
+# Add to root's crontab - rsync to another machine each night at 04:00:
 sudo crontab -e
 # Append:
 0 4 * * * rsync -a --delete $BACKUP_PATH/ backup-server:/srv/kamsora-apm-backups/
@@ -704,7 +703,7 @@ Or mirror to S3 with `aws s3 sync`, etc.
 
 ### 12.6. Restore
 
-See README Â§5 (Restore section). Short version:
+See README section 5 (Restore section). Short version:
 
 ```bash
 # Postgres:
@@ -725,37 +724,37 @@ Honest scope statement so you know where the limits are:
 
 | Capability | Status | Planned in |
 |---|---|---|
-| Single-host docker-compose | âœ… shipped | this guide |
-| BYO wildcard cert | âœ… shipped | this guide |
-| Daily backups + retention | âœ… shipped | this guide |
-| Tenant onboarding UI + API keys UI | âœ… shipped (M4.1) | dashboard |
-| Multi-user invite + non-owner roles | âŒ | M4.2 |
-| Audit-log viewer UI | âŒ (audit data is recorded, viewer is SQL-only) | M4.2 |
-| Tenant suspend / soft-delete UI | âŒ | M4.2 |
-| Automated SQL migration runner | âŒ (currently manual) | M5 |
-| Auth-token cache for ingest scale | âŒ (every gRPC call hits PG) | M5 |
-| Horizontal Collector scaling + LB | âŒ (single Collector container) | M5 |
-| ClickHouse cluster (3-node + Distributed) | âŒ (single node) | M5 |
-| Per-tenant rate limits | âŒ (no enforcement; limits are advisory in `mastertenants`) | M5 |
-| Per-tenant retention UI | âŒ (set via SQL UPDATE on `mastertenants.data_retention_days`) | M6 |
-| Off-box backup target (S3 / GCS) | âŒ (local volume only; manual rsync needed) | M6 |
-| WAF / DDoS protection | âŒ (front with Cloudflare if needed) | external |
-| HA / multi-VM / k8s Helm chart | âŒ | M7+ |
-| Apitally-style per-API-key consumer analytics + monetization | âŒ | M6+ (see references section) |
+| Single-host docker-compose | [x] shipped | this guide |
+| BYO wildcard cert | [x] shipped | this guide |
+| Daily backups + retention | [x] shipped | this guide |
+| Tenant onboarding UI + API keys UI | [x] shipped (M4.1) | dashboard |
+| Multi-user invite + non-owner roles | [ ] | M4.2 |
+| Audit-log viewer UI | [ ] (audit data is recorded, viewer is SQL-only) | M4.2 |
+| Tenant suspend / soft-delete UI | [ ] | M4.2 |
+| Automated SQL migration runner | [ ] (currently manual) | M5 |
+| Auth-token cache for ingest scale | [ ] (every gRPC call hits PG) | M5 |
+| Horizontal Collector scaling + LB | [ ] (single Collector container) | M5 |
+| ClickHouse cluster (3-node + Distributed) | [ ] (single node) | M5 |
+| Per-tenant rate limits | [ ] (no enforcement; limits are advisory in `mastertenants`) | M5 |
+| Per-tenant retention UI | [ ] (set via SQL UPDATE on `mastertenants.data_retention_days`) | M6 |
+| Off-box backup target (S3 / GCS) | [ ] (local volume only; manual rsync needed) | M6 |
+| WAF / DDoS protection | [ ] (front with Cloudflare if needed) | external |
+| HA / multi-VM / k8s Helm chart | [ ] | M7+ |
+| Apitally-style per-API-key consumer analytics + monetization | [ ] | M6+ (see references section) |
 
 ### Reference platforms for the M5+ roadmap
 
 Useful comparison points when prioritising next features:
 
-- **[Apitally](https://apitally.io/)** â€” minimal-instrument APM
+- **[Apitally](https://apitally.io/)** - minimal-instrument APM
   focused on per-API-key consumer analytics, 4xx breakdowns, and traffic
   reports. Their "consumer tracking" and "validation errors" features
   are good targets for KamsoraAPM's M6 sprint.
-- **[OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)** â€”
+- **[OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)** -
   reference for ingest scaling patterns (M5).
-- **[Sentry self-hosted](https://github.com/getsentry/self-hosted)** â€”
+- **[Sentry self-hosted](https://github.com/getsentry/self-hosted)** -
   reference for compose-based deployments at the scale we're targeting.
-- **[ClickHouse Cloud architecture](https://clickhouse.com/docs/en/cloud-overview)** â€”
+- **[ClickHouse Cloud architecture](https://clickhouse.com/docs/en/cloud-overview)** -
   reference for sharding by `tenant_id` in M5.
 
 ---

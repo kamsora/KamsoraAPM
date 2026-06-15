@@ -1,26 +1,26 @@
-﻿# KamsoraAPM production Caddyfile â€” Bring-Your-Own wildcard cert variant.
+﻿# KamsoraAPM production Caddyfile - Bring-Your-Own wildcard cert variant.
 #
 # Use this Caddyfile when you have an existing wildcard cert (e.g. from
 # DigiCert / GoDaddy / your corporate PKI) instead of letting Caddy issue
 # from Let's Encrypt.
 #
 # Expected mount:
-#   /certs/cert.pem   â€” public cert + intermediate chain (PEM)
-#   /certs/key.pem    â€” private key (PEM, unencrypted)
+#   /certs/cert.pem   - public cert + intermediate chain (PEM)
+#   /certs/key.pem    - private key (PEM, unencrypted)
 #
 # Convert from a .pfx file:
 #   openssl pkcs12 -in your.pfx -out cert.pem -clcerts -nokeys
 #   openssl pkcs12 -in your.pfx -out key.pem  -nocerts -nodes
 #
 # Required env vars:
-#   KAMSORA_DOMAIN   â€” full hostname for the dashboard, e.g. apm.example.com
+#   KAMSORA_DOMAIN   - full hostname for the dashboard, e.g. apm.example.com
 #                      (must be covered by the wildcard cert)
 #
 # NOT required (vs the Let's Encrypt variant):
-#   KAMSORA_ACME_EMAIL â€” Caddy doesn't talk to Let's Encrypt in this mode.
+#   KAMSORA_ACME_EMAIL - Caddy doesn't talk to Let's Encrypt in this mode.
 
 {
-    # Disable automatic HTTPS â€” we explicitly mount our own cert per site below.
+    # Disable automatic HTTPS - we explicitly mount our own cert per site below.
     auto_https off
 
     log {
@@ -75,7 +75,7 @@
     }
 }
 
-# ---------- Optional HTTP â†’ HTTPS redirect (port 80) ----------
+# ---------- Optional HTTP -> HTTPS redirect (port 80) ----------
 # Comment this whole block out if you can't expose port 80 from your firewall.
 :80 {
     redir https://{$KAMSORA_DOMAIN}{uri} permanent
