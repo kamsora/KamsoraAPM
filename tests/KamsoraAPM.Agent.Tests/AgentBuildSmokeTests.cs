@@ -12,6 +12,7 @@ public class AgentBuildSmokeTests
     public void Agent_version_is_populated()
     {
         KamsoraApmAgent.Version.Should().NotBeNullOrWhiteSpace();
-        KamsoraApmAgent.Version.Should().StartWith("0.");
+        // Semver-ish: "major.minor..." - stays valid across version bumps.
+        KamsoraApmAgent.Version.Should().MatchRegex(@"^\d+\.\d+");
     }
 }
