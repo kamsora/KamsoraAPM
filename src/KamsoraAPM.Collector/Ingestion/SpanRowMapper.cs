@@ -12,8 +12,11 @@ namespace KamsoraAPM.Collector.Ingestion;
 /// <see cref="ResourceSpans"/> into a storage-layer <see cref="SpanRow"/>.
 ///
 /// Hoisted attributes (http.method, http.route, http.response.status_code,
-/// db.system, db.statement) are extracted from <c>span.Attributes</c> so
-/// dashboard queries can filter without unpacking the attrs_keys array.
+/// db.system / db.system.name, db.statement / db.query.text) are extracted
+/// from <c>span.Attributes</c> so dashboard queries can filter without
+/// unpacking the attrs_keys array. Both the legacy and the stabilized
+/// OpenTelemetry database semantic conventions are accepted, so spans from
+/// newer drivers (e.g. Npgsql 9+) classify as DB calls just like older ones.
 /// </summary>
 internal static class SpanRowMapper
 {
@@ -27,8 +30,10 @@ internal static class SpanRowMapper
     private const string AttrHttpStatusCode    = "http.response.status_code";
     private const string AttrUrlFull           = "url.full";
     private const string AttrClientAddress     = "client.address";
-    private const string AttrDbSystem          = "db.system";
-    private const string AttrDbStatement       = "db.statement";
+    private const string AttrDbSystem          = "db.system";       // legacy OTel DB semconv
+    private const string AttrDbSystemName      = "db.system.name";   // stable OTel DB semconv (Npgsql 9+, newer instrumentation)
+    private const string AttrDbStatement       = "db.statement";     // legacy OTel DB semconv
+    private const string AttrDbQueryText       = "db.query.text";    // stable OTel DB semconv
     private const string AttrKamsoraConsumerId = "kamsora.consumer.id";
 
     public static SpanRow ToRow(Guid tenantId, ResourceSpans resourceSpans, ScopeSpans scope, Span span)
@@ -93,10 +98,18 @@ internal static class SpanRowMapper
                     row.HttpClientIp = AnyValueToString(kv.Value);
                     break;
                 case AttrDbSystem:
-                    row.DbSystem = AnyValueToString(kv.Value);
+                case AttrDbSystemName:
+                    // db.system (experimental) was renamed to db.system.name when
+                    // the OTel database conventions stabilized. Accept either, and
+                    // never let an empty value overwrite one already captured (a
+                    // driver in dup mode emits both keys).
+                    if (string.IsNullOrEmpty(row.DbSystem))
+                        row.DbSystem = AnyValueToString(kv.Value);
                     break;
                 case AttrDbStatement:
-                    row.DbStatement = AnyValueToString(kv.Value);
+                case AttrDbQueryText:
+                    if (string.IsNullOrEmpty(row.DbStatement))
+                        row.DbStatement = AnyValueToString(kv.Value);
                     break;
                 case AttrKamsoraConsumerId:
                     row.ConsumerId = AnyValueToString(kv.Value);

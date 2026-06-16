@@ -29,4 +29,8 @@
     <ProjectReference Include="..\KamsoraAPM.Storage\KamsoraAPM.Storage.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="KamsoraAPM.Collector.Tests" />
+  </ItemGroup>
+
 </Project>
