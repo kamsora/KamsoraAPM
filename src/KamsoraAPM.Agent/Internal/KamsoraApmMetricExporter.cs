@@ -73,6 +73,8 @@ internal sealed class KamsoraApmMetricExporter : BaseExporter<Metric>
 
         var headers = KamsoraGrpcChannelFactory.BuildAuthMetadata(_options);
 
+        // Keep our own export RPC out of the captured telemetry.
+        using var suppressSelfTrace = AgentSelfTrace.Suppress();
         try
         {
             using var call = _metricsClient.ExportAsync(

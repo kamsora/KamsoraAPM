@@ -88,10 +88,13 @@ public sealed class KamsoraApmOptions
     public bool EnableDiagnostics { get; set; }
 
     /// <summary>
-    /// Activity-source name prefixes to capture. If empty, the Agent listens
-    /// to ALL sources (recommended). Defaults include ASP.NET Core HTTP
-    /// server activities and outbound <c>HttpClient</c> calls, plus any
-    /// custom <c>ActivitySource</c> your app creates.
+    /// Activity-source name prefixes to capture. <b>Empty (the default) means the
+    /// Agent listens to EVERY <c>ActivitySource</c></b>, so any OTel-emitting
+    /// library - HTTP, SQL and NoSQL drivers, cache clients, message queues,
+    /// gRPC, and your own custom sources - is captured automatically with no
+    /// per-app configuration. Set one or more prefixes to restrict capture
+    /// (e.g. <c>"Npgsql"</c>, <c>"Microsoft.AspNetCore"</c>). The
+    /// <see cref="CaptureKinds"/> filter still applies on top of this.
     /// </summary>
     public IList<string> CaptureSources { get; } = new List<string>();
 

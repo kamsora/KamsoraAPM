@@ -17,31 +17,22 @@ namespace KamsoraAPM.Agent.Internal;
 ///
 /// Why a listener rather than a middleware?
 ///  - No <c>UseKamsoraApm()</c> required in user code.
-///  - Captures activities from any participating SDK (HttpClient, EF, …)
-///    once we widen the <c>ShouldListenTo</c> predicate in M2.
+///  - Captures activities from any participating SDK (HttpClient, EF Core, SQL
+///    and NoSQL drivers, cache clients, message queues, gRPC, …) by listening to
+///    every <c>ActivitySource</c> in the process unless the host narrows
+///    <c>CaptureSources</c>.
 ///  - Zero impact when the framework hasn't started the activity (e.g. when
 ///    the user has disabled the built-in HTTP-server activity).
 /// </summary>
 internal sealed class KamsoraApmActivityListener : IDisposable
 {
-    private static readonly string[] DefaultCapturePrefixes =
-    {
-        "Microsoft.AspNetCore",          // HTTP server requests
-        "System.Net.Http",               // outbound HttpClient
-        "Microsoft.EntityFrameworkCore", // EF Core queries (DbCommand events on EF 6+)
-        "Npgsql",                        // PostgreSQL self-emitted by Npgsql 6+
-        "MySqlConnector",                // MySQL self-emitted by MySqlConnector 2+
-        "OracleDataProvider",            // Oracle ODP.NET 23ai+
-        "OpenTelemetry.Instrumentation", // any OTel-shipped instrumentation we register
-        "Kamsora.",                      // user-defined sources following our convention
-    };
-
     private readonly ChannelWriter<Span> _channelWriter;
     private readonly ILogger<KamsoraApmActivityListener> _logger;
     private readonly KamsoraApmOptions _options;
     private readonly ActivityListener _listener;
     private readonly HashSet<ActivityKind> _captureKinds;
     private readonly string[] _capturePrefixes;
+    private readonly bool _listenToAllSources;
     private readonly ulong _sampleThreshold;     // 0 = drop all, ulong.MaxValue = keep all
     private long _droppedSpans;
 
@@ -54,9 +45,12 @@ internal sealed class KamsoraApmActivityListener : IDisposable
         _options       = options.Value;
         _logger        = logger;
 
-        _capturePrefixes = _options.CaptureSources.Count > 0
-            ? _options.CaptureSources.ToArray()
-            : DefaultCapturePrefixes;
+        // Empty CaptureSources (the default) = listen to EVERY ActivitySource, so any
+        // OTel-emitting dependency (SQL/NoSQL drivers, cache clients, message queues,
+        // gRPC, custom sources) is captured with zero per-app configuration. Set
+        // CaptureSources to one or more prefixes to narrow capture instead.
+        _listenToAllSources = _options.CaptureSources.Count == 0;
+        _capturePrefixes    = _options.CaptureSources.ToArray();
 
         _captureKinds = new HashSet<ActivityKind>(
             _options.CaptureKinds.Select(ParseKind).Where(k => k.HasValue).Select(k => k!.Value));
@@ -85,7 +79,7 @@ internal sealed class KamsoraApmActivityListener : IDisposable
             _logger.LogInformation(
                 "KamsoraAPM Agent ActivityListener subscribed (service={ServiceName}, tenant={TenantId}, sources=[{Sources}], kinds=[{Kinds}])",
                 _options.ServiceName, _options.TenantId,
-                string.Join(", ", _capturePrefixes),
+                _listenToAllSources ? "ALL" : string.Join(", ", _capturePrefixes),
                 string.Join(", ", _captureKinds));
         }
     }
@@ -95,6 +89,7 @@ internal sealed class KamsoraApmActivityListener : IDisposable
 
     private bool ShouldListenTo(ActivitySource source)
     {
+        if (_listenToAllSources) return true;
         for (int i = 0; i < _capturePrefixes.Length; i++)
         {
             if (source.Name.StartsWith(_capturePrefixes[i], StringComparison.Ordinal)) return true;
@@ -149,6 +144,10 @@ internal sealed class KamsoraApmActivityListener : IDisposable
 
     private void OnActivityStopped(Activity activity)
     {
+        // Never capture the activities our own exporters create while shipping
+        // telemetry to the Collector - with all-source capture on, those export
+        // RPCs would otherwise loop straight back into the export queue.
+        if (AgentSelfTrace.IsExporting) return;
         if (!_captureKinds.Contains(activity.Kind)) return;
 
         Span span;
