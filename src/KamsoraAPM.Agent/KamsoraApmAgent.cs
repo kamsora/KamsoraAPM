@@ -19,5 +19,5 @@ public static class KamsoraApmAgent
     /// Semantic version of this Agent build. Reported in the
     /// <c>kamsora.agent.version</c> resource attribute.
     /// </summary>
-    public const string Version = "0.1.0-m0";
+    public const string Version = "1.5.0";
 }

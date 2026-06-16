@@ -7,11 +7,26 @@
     <Description>KamsoraAPM in-process agent for .NET Core Web APIs. Auto-captures HTTP, HttpClient, SqlClient/Npgsql/MySqlConnector/EF Core spans and forwards over gRPC (OTLP-compatible) to the KamsoraAPM Collector. &lt;2 ms per-request overhead.</Description>
     <IsPackable>true</IsPackable>
     <PackageId>KamsoraAPM.Agent</PackageId>
-    <Version>1.4.0</Version>
+    <Version>1.5.0</Version>
     <PackageTags>apm;observability;tracing;opentelemetry;otel;otlp;aspnetcore;dotnet;monitoring;kamsora</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>kamsora-icon.png</PackageIcon>
     <PackageReleaseNotes>
+      v1.5.0 - universal dependency tracing.
+
+      The Agent now listens to EVERY ActivitySource by default (empty
+      CaptureSources), so any OpenTelemetry-emitting dependency - SQL and
+      NoSQL drivers, cache clients (Redis), message queues, gRPC, and your
+      own custom sources - is captured with zero per-app configuration,
+      not just a curated prefix list. This also covers drivers on the
+      stabilized OpenTelemetry database conventions (e.g. Npgsql 9+).
+      Set CaptureSources explicitly to narrow capture if you want less.
+
+      The exporters' own gRPC calls to the Collector are now excluded from
+      capture, so observing every source cannot feed the export RPCs back
+      into the queue. Also syncs the reported kamsora.agent.version (was a
+      stale 0.1.0-m0 marker).
+
       v1.4.0 - OTLP wire-format alignment (BREAKING vs v1.3.x mixed fleets).
 
       The kamsora.common.v1.AnyValue message now matches OpenTelemetry's
