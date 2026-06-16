@@ -9,6 +9,11 @@ export interface LoginResponse {
   isPlatformAdmin: boolean;
 }
 
+export interface TenantProfile {
+  tenantName: string;
+  tenantSlug: string;
+}
+
 // ---- M4.1 admin / API key DTOs ----
 
 export interface TenantSummary {

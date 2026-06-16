@@ -95,6 +95,25 @@ public static class SelfServiceEndpoints
             return Results.NoContent();
         });
 
+        // ---- Current tenant profile (any logged-in user - drives the sidebar) ----
+        me.MapGet("/tenant", async (
+            HttpContext http,
+            IOptions<PostgresOptions> pg,
+            CancellationToken ct) =>
+        {
+            if (!TryGetTenant(http, out var tenantId)) return Results.Unauthorized();
+
+            await using var conn = await OpenAsync(pg, ct).ConfigureAwait(false);
+            await using var cmd  = new NpgsqlCommand(
+                "SELECT tenant_name, tenant_slug FROM public.mastertenants WHERE systenantuuid = @t AND status = 'active'", conn);
+            cmd.Parameters.AddWithValue("t", tenantId.ToString());
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+            if (!await reader.ReadAsync(ct).ConfigureAwait(false))
+                return Results.NotFound(new { error = "Tenant not found." });
+            return Results.Ok(new TenantProfile(reader.GetString(0), reader.GetString(1)));
+        });
+
         // ---- Audit log: tenant owner sees their own tenant ----
         owner.MapGet("/audit-log", async (
             HttpContext http,
@@ -107,6 +126,55 @@ public static class SelfServiceEndpoints
         {
             if (!TryGetTenant(http, out var tenantId)) return Results.Unauthorized();
             return await ListAuditAsync(pg, tenantId.ToString(), action, actor, page, pageSize, ct).ConfigureAwait(false);
+        });
+
+        // ---- Rename the current tenant (owner only) ----
+        // Only the display name (tenant_name) is editable. tenant_slug is an
+        // immutable identifier wired into alerting lookups and ingest scoping,
+        // so we never touch it here.
+        owner.MapPut("/name", async (
+            HttpContext http,
+            RenameTenantRequest req,
+            IOptions<PostgresOptions> pg,
+            CancellationToken ct) =>
+        {
+            var name = req.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+                return Results.BadRequest(new { error = "name is required" });
+            if (name.Length > 120)
+                return Results.BadRequest(new { error = "name must be 120 characters or fewer" });
+            if (!TryGetTenant(http, out var tenantId)) return Results.Unauthorized();
+
+            await using var conn = await OpenAsync(pg, ct).ConfigureAwait(false);
+            await using var tx   = await conn.BeginTransactionAsync(ct).ConfigureAwait(false);
+
+            int rows;
+            await using (var cmd = new NpgsqlCommand(@"
+                UPDATE public.mastertenants
+                   SET tenant_name     = @name,
+                       updatedby       = @by,
+                       updateddatetime = CURRENT_TIMESTAMP
+                 WHERE systenantuuid = @t
+                   AND status = 'active'", conn, tx))
+            {
+                cmd.Parameters.AddWithValue("name", name);
+                cmd.Parameters.AddWithValue("by",   ActorTag(http));
+                cmd.Parameters.AddWithValue("t",    tenantId.ToString());
+                rows = await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+
+            if (rows == 0)
+            {
+                await tx.RollbackAsync(ct).ConfigureAwait(false);
+                return Results.NotFound(new { error = "Tenant not found." });
+            }
+
+            await WriteAuditAsync(conn, tx, http, tenantId.ToString(), "tenant.rename",
+                "mastertenants", tenantId.ToString(),
+                JsonSerializer.Serialize(new { name }), ct).ConfigureAwait(false);
+
+            await tx.CommitAsync(ct).ConfigureAwait(false);
+            return Results.NoContent();
         });
 
         // ---- Audit log: platform admin sees any/all tenants ----
@@ -242,6 +310,10 @@ public static class SelfServiceEndpoints
 // ---- DTOs ------------------------------------------------------------------
 
 public sealed record ChangePasswordRequest(string OldPassword, string NewPassword);
+
+public sealed record TenantProfile(string TenantName, string TenantSlug);
+
+public sealed record RenameTenantRequest(string Name);
 
 public sealed record AuditLogEntry(
     string    SysAuditTransId,

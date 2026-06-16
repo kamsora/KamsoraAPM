@@ -72,7 +72,11 @@ export default function LoginPage() {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
 
-        <p className="muted" style={{ marginTop: 24, fontSize: 12, textAlign: 'center' }}>
+        <p className="muted" style={{ marginTop: 24, fontSize: 12, textAlign: 'center', lineHeight: 1.6 }}>
+          <a href="https://kamsora.com" target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600 }}>
+            Kamsora Technologies Pvt. Ltd.
+          </a>
+          <br />
           Self-hosted KamsoraAPM · Apache 2.0
         </p>
       </form>
