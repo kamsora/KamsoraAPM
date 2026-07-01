@@ -25,9 +25,9 @@
 
   <ItemGroup Label="gRPC / Protobuf">
     <PackageVersion Include="Grpc.AspNetCore" Version="2.66.0" />
-    <PackageVersion Include="Grpc.Net.Client" Version="2.66.0" />
-    <PackageVersion Include="Grpc.Tools" Version="2.66.0" />
-    <PackageVersion Include="Google.Protobuf" Version="3.28.3" />
+    <PackageVersion Include="Grpc.Net.Client" Version="2.80.0" />
+    <PackageVersion Include="Grpc.Tools" Version="2.81.1" />
+    <PackageVersion Include="Google.Protobuf" Version="3.35.1" />
   </ItemGroup>
 
   <ItemGroup Label="OpenTelemetry (we ingest OTLP and self-instrument). 1.11.2 patches GHSA-4625-4j76-fww9.">
