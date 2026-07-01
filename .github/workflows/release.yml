@@ -33,17 +33,17 @@ jobs:
     name: build-and-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
             8.0.x
             10.0.202
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
@@ -77,7 +77,7 @@ jobs:
           --output artifacts/nupkgs
 
       - name: Upload nupkg artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nupkgs
           path: artifacts/nupkgs/*.nupkg
@@ -94,13 +94,13 @@ jobs:
       contents: read
     steps:
       - name: Download nupkg artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: nupkgs
           path: nupkgs
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
             8.0.x
@@ -138,21 +138,21 @@ jobs:
           - name: kamsora-apm-dashboard
             dockerfile: deploy/docker/Dockerfile.dashboard
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
           tags: |
@@ -160,7 +160,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.image.dockerfile }}
@@ -175,10 +175,10 @@ jobs:
     runs-on: windows-latest
     needs: build-and-test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
             8.0.x
@@ -214,7 +214,7 @@ jobs:
           Compress-Archive -Path staging/hostmonitor/* -DestinationPath artifacts/hostmonitor/kamsora-apm-hostmonitor-win-x64.zip -Force
 
       - name: Upload HostMonitor artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: hostmonitor-win-x64
           path: artifacts/hostmonitor/*.zip
@@ -224,10 +224,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
             8.0.x
@@ -261,7 +261,7 @@ jobs:
           tar -C staging -czf artifacts/hostmonitor/kamsora-apm-hostmonitor-linux-x64.tar.gz kamsora-apm-hostmonitor-linux-x64
 
       - name: Upload HostMonitor artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: hostmonitor-linux-x64
           path: artifacts/hostmonitor/*.tar.gz
@@ -272,25 +272,25 @@ jobs:
     needs: [publish-nuget, docker-images, publish-hostmonitor-windows, publish-hostmonitor-linux]
     steps:
       - name: Download nupkg artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: nupkgs
           path: nupkgs
 
       - name: Download HostMonitor (Windows) artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: hostmonitor-win-x64
           path: hostmonitor
 
       - name: Download HostMonitor (Linux) artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: hostmonitor-linux-x64
           path: hostmonitor
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           files: |
